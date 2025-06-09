@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "757434109730",
+    "project_id": "candidapp-10368",
+    "storage_bucket": "candidapp-10368.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:757434109730:android:df5e45ae07fa3fffefdf7b",
+        "android_client_info": {
+          "package_name": "com.example.candid_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaETJhUpysjGSi8FXk--k6w8AC7hF-ATg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
