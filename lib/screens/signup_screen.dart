@@ -21,7 +21,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _confirmPasswordController = TextEditingController();
   bool _agreedToTerms = false;
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  bool _obscurePassword = false;
   bool _obscureConfirmPassword = false;
 
   Future<void> _onSignUpPressed() async {
@@ -39,6 +39,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     try {
       final auth = AuthService();
+
       final user = await auth.registerWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
@@ -48,7 +49,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         await DatabaseService().updateUserProfile(user.uid, {
           'name': _nameController.text.trim(),
           'email': _emailController.text.trim(),
-          'role': 'candidate',
           'createdAt': FieldValue.serverTimestamp(),
         });
         Navigator.pushReplacementNamed(context, AppRoutes.home);

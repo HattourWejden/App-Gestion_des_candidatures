@@ -39,14 +39,12 @@ class Job {
   }
 }
 
-
 final jobsProvider = StreamProvider<List<Job>>((ref) {
   return DatabaseService().getJobs().map(
     (snapshot) => snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList(),
   );
 });
 
-// Provider pour les statistiques
 final statsProvider = FutureProvider<Map<String, int>>((ref) async {
   final jobsSnapshot =
       await FirebaseFirestore.instance.collection('jobs').get();
@@ -60,7 +58,6 @@ final statsProvider = FutureProvider<Map<String, int>>((ref) async {
   };
 });
 
-// Provider pour les favoris
 final favoritesProvider = StreamProvider.family<List<String>, String>((
   ref,
   userId,
@@ -71,7 +68,6 @@ final favoritesProvider = StreamProvider.family<List<String>, String>((
   });
 });
 
-// Provider pour les filtres
 final filterProvider = StateProvider<Map<String, String?>>(
   (ref) => {'status': null, 'department': null, 'search': null},
 );
@@ -185,22 +181,30 @@ class HomeScreen extends ConsumerWidget {
                 (stats) => Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisAlignment:
+                        MainAxisAlignment.spaceEvenly, // Répartition équitable
                     children: [
-                      _buildStatCard(
-                        'Offres totales',
-                        stats['total_jobs'].toString(),
-                        AppColors.primaryBlue,
+                      Expanded(
+                        // Utilisation d'Expanded pour éviter l'overflow
+                        child: _buildStatCard(
+                          'Offres totales',
+                          stats['total_jobs'].toString(),
+                          AppColors.primaryBlue,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Offres actives',
-                        stats['active_jobs'].toString(),
-                        AppColors.primaryGreen,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Offres actives',
+                          stats['active_jobs'].toString(),
+                          AppColors.primaryGreen,
+                        ),
                       ),
-                      _buildStatCard(
-                        'Candidatures',
-                        stats['total_applications'].toString(),
-                        AppColors.darkGrey,
+                      Expanded(
+                        child: _buildStatCard(
+                          'Candidatures',
+                          stats['total_applications'].toString(),
+                          AppColors.darkGrey,
+                        ),
                       ),
                     ],
                   ),
@@ -373,7 +377,12 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text(title, style: const TextStyle(color: AppColors.darkGrey)),
+            Text(
+              title,
+              style: const TextStyle(color: AppColors.darkGrey),
+              overflow:
+                  TextOverflow.ellipsis, // Gestion du débordement du texte
+            ),
             const SizedBox(height: 8),
             Text(
               value,
@@ -382,6 +391,8 @@ class HomeScreen extends ConsumerWidget {
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
+              overflow:
+                  TextOverflow.ellipsis, // Gestion du débordement du texte
             ),
           ],
         ),
