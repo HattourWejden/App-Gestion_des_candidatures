@@ -1,8 +1,8 @@
-import 'package:candid_app/services/auth_service.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../constants/app_routes.dart';
-
+import '../constants/colors.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,11 +12,11 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool rememberMe = false;
   bool _isLoading = false;
+  bool _obscurePassword = false;
   final _formKey = GlobalKey<FormState>();
 
   Future<void> _onSignInPressed() async {
@@ -26,18 +26,18 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final user = await AuthService().signInWithEmailAndPassword(
-        _emailController.text,
-        _passwordController.text,
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
-
-      if (!mounted) return;
-
-      if (user != null) {
+      print('Utilisateur retourné: $user, Type: ${user.runtimeType}');
+      if (user != null && mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
+      } else {
+        throw Exception('Connexion échouée');
       }
     } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
       String errorMessage;
-
       switch (e.code) {
         case 'invalid-email':
           errorMessage = 'Email invalide';
@@ -50,25 +50,23 @@ class _LoginScreenState extends State<LoginScreen> {
           errorMessage = 'Email ou mot de passe incorrect';
           break;
         default:
-          errorMessage = 'Erreur de connexion';
+          errorMessage = 'Erreur de connexion: ${e.message}';
       }
-
-      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(errorMessage)));
     } catch (e) {
       if (!mounted) return;
+      print('Exception capturée: $e');
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Erreur inattendue')));
+      ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
     } finally {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-    @override
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -77,126 +75,192 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final paddingTop = screenHeight * 0.2;
 
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                "Welcome back",
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Sign in to continue",
-                style: TextStyle(color: Colors.grey),
-              ),
-
-              const SizedBox(height: 32),
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  hintText: 'johndoe@mail.com',
-                  filled: true,
-                  fillColor: Color(0xFFF1F1F5),
-                ),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!value.contains('@')) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  hintText: 'Password',
-                  filled: true,
-                  fillColor: Color(0xFFF1F1F5),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your password';
-                  }
-                  if (value.length < 6) {
-                    return 'Password must be at least 6 characters';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: AppColors.lightGrey,
+      resizeToAvoidBottomInset: false,
+      body: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.only(top: paddingTop, left: 24.0, right: 24.0),
+            child: Form(
+              key: _formKey,
+              child: ListView(
                 children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: rememberMe,
-                        onChanged: (value) {
+                  const Text(
+                    "Bienvenue de nouveau",
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Connectez-vous pour continuez ",
+                    style: TextStyle(color: AppColors.darkGrey),
+                  ),
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      hintText: 'johndoe@mail.com',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.darkGrey),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.email,
+                        color: AppColors.primaryBlue,
+                      ),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre email';
+                      }
+                      if (!RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      ).hasMatch(value)) {
+                        return 'Veuillez entrer un email valide';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      hintText: 'Mot de passe',
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.darkGrey),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.lock,
+                        color: AppColors.primaryBlue,
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                          color: AppColors.primaryBlue,
+                        ),
+                        onPressed: () {
                           setState(() {
-                            rememberMe = value ?? false;
+                            _obscurePassword = !_obscurePassword;
                           });
                         },
                       ),
-                      const Text("Remember me"),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Veuillez entrer votre mot de passe';
+                      }
+                      if (value.length < 6) {
+                        return 'Le mot de passe doit contenir au moins 6 caractères';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: rememberMe,
+                            onChanged: (value) {
+                              setState(() {
+                                rememberMe = value ?? false;
+                              });
+                            },
+                            activeColor: AppColors.primaryBlue,
+                          ),
+                          const Text("Se souvenir de moi"),
+                        ],
+                      ),
+                      Flexible(
+                        child: TextButton(
+                          onPressed: () {
+                            Navigator.pushNamed(
+                              context,
+                              AppRoutes.forgotPassword,
+                            );
+                          },
+                          child: const Text(
+                            "Mot de passe oublié ?",
+                            style: TextStyle(color: AppColors.primaryBlue),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.forgotPassword);
-                    },
-                    child: const Text("Forgot password?"),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _onSignInPressed,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                ),
-                child:
-                    _isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text(
-                          "Sign In",
-                          style: TextStyle(fontStyle: FontStyle.italic),
-                        ),
-              ),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Don't have an account? "),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(context, AppRoutes.signup);
-                    },
-                    child: const Text(
-                      "Sign Up",
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _isLoading ? null : _onSignInPressed,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      backgroundColor: AppColors.primaryBlue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text(
+                              "Se connecter",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Pas de compte ? "),
+                      GestureDetector(
+                        onTap:
+                            () =>
+                                Navigator.pushNamed(context, AppRoutes.signup),
+                        child: const Text(
+                          "S'inscrire",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.primaryBlue,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            bottom: 16.0,
+            right: 16.0,
+            child: Image.asset(
+              'images/jglogo-removebg-preview.png',
+              height: 100,
+              width: 100,
+            ),
+          ),
+        ],
       ),
     );
   }
-  }
+}

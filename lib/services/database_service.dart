@@ -1,39 +1,54 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class DatabaseService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Ajouter une offre d'emploi
   Future<void> addJob(Map<String, dynamic> jobData) async {
-    await _firestore.collection('jobs').add(jobData);
+    await _firestore.collection('jobs').add({
+      ...jobData,
+      'postedDate': FieldValue.serverTimestamp(),
+    });
   }
 
-  // Récupérer toutes les offres
   Stream<QuerySnapshot> getJobs() {
-    return _firestore.collection('jobs').orderBy('postedDate').snapshots();
+    return _firestore.collection('jobs').orderBy('postedDate', descending: true).snapshots();
   }
 
-  // Récupérer les favoris d'un utilisateur
   Stream<DocumentSnapshot> getUserFavorites(String userId) {
     return _firestore.collection('userFavorites').doc(userId).snapshots();
   }
 
-  // Ajouter/retirer des favoris
   Future<void> toggleFavorite(String userId, String jobId, bool isFavorite) async {
+    final docRef = _firestore.collection('userFavorites').doc(userId);
     if (isFavorite) {
-      await _firestore.collection('userFavorites').doc(userId).update({
+      await docRef.set({
         'jobs': FieldValue.arrayUnion([jobId])
-      });
+      }, SetOptions(merge: true));
     } else {
-      await _firestore.collection('userFavorites').doc(userId).update({
+      await docRef.set({
         'jobs': FieldValue.arrayRemove([jobId])
-      });
+      }, SetOptions(merge: true));
     }
   }
 
-  // Mettre à jour le profil utilisateur
   Future<void> updateUserProfile(String userId, Map<String, dynamic> userData) async {
-    await _firestore.collection('users').doc(userId).update(userData);
+    await _firestore.collection('users').doc(userId).set(userData, SetOptions(merge: true));
+  }
+
+  Future<void> applyToJob(String userId, String jobId) async {
+    final applicationData = {
+      'userId': userId,
+      'jobId': jobId,
+      'appliedAt': FieldValue.serverTimestamp(),
+      'status': 'pending',
+    };
+    await _firestore
+        .collection('jobs')
+        .doc(jobId)
+        .collection('applications')
+        .add(applicationData);
+    await _firestore.collection('jobs').doc(jobId).update({
+      'application_count': FieldValue.increment(1),
+    });
   }
 }

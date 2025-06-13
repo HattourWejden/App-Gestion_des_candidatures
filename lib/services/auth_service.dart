@@ -8,42 +8,38 @@ class AuthService {
     String password,
   ) async {
     try {
-      final UserCredential result = await _auth.signInWithEmailAndPassword(
+      final UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      return userCredential.user;
+    } catch (e) {
+      print('Erreur d\'authentification: $e');
+      rethrow;
+    }
+  }
+
+  Future<User?> registerWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    try {
+      final UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
       return result.user;
     } on FirebaseAuthException catch (e) {
-      print("Erreur de connexion: ${e.code} - ${e.message}");
-      rethrow; // Important pour propager l'erreur
+      print("Erreur d'inscription: ${e.code} - ${e.message}");
+      rethrow;
     } catch (e) {
       print("Erreur inattendue: $e");
       rethrow;
     }
   }
 
-  // Inscription
-  Future<User?> registerWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
-    try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      return result.user;
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  // Déconnexion
   Future<void> signOut() async {
     await _auth.signOut();
   }
 
-  // Écoute des changements d'authentification
   Stream<User?> get user {
     return _auth.authStateChanges();
   }

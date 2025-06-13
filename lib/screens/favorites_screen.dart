@@ -1,79 +1,120 @@
-import 'package:candid_app/constants/app_routes.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
-import '../models/job_model.dart';
+import '../constants/app_routes.dart';
+import '../services/database_service.dart';
+import 'home_screen.dart'; // Import for Job model
 
-import 'home_screen.dart';
+// Provider for favorite jobs
+final favoriteJobsProvider = StreamProvider<List<Job>>((ref) async* {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-class FavoritesScreen extends StatefulWidget {
+  final favoritesSnapshot = await DatabaseService().getUserFavorites(user.uid).first;
+  final favoriteJobIds = ((favoritesSnapshot.data() as Map<String, dynamic>?)?['jobs'] as List<dynamic>?)?.cast<String>() ?? [];
+
+  if (favoriteJobIds.isEmpty) {
+    yield [];
+    return;
+  }
+
+  final jobsStream = DatabaseService()
+      .getJobs()
+      .map((snapshot) => snapshot.docs
+          .map((doc) => Job.fromFirestore(doc))
+          .where((job) => favoriteJobIds.contains(job.id))
+          .toList());
+
+  await for (final jobs in jobsStream) {
+    yield jobs;
+  }
+});
+
+class FavoritesScreen extends ConsumerWidget {
   const FavoritesScreen({super.key});
 
   @override
-  State<FavoritesScreen> createState() => _FavoritesScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      });
+      return const SizedBox.shrink();
+    }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
-  late List<Job> _favoriteJobs;
+    final favoriteJobsAsync = ref.watch(favoriteJobsProvider);
 
-  @override
-  void initState() {
-    super.initState();
-  
-  }
-
-  void _toggleFavorite(String jobId) {
-    setState(() {
-      _favoriteJobs = _favoriteJobs.where((job) => job.id != jobId).toList();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.lightGrey,
       appBar: AppBar(
-        title: const Text('Offres favorites'),
         backgroundColor: AppColors.primaryBlue,
+        title: const Text('Mes Favoris', style: TextStyle(color: Colors.white)),
       ),
-      body: _favoriteJobs.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.favorite_border,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Aucune offre favorite',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRoutes.home,
-                        (route) => false,
-                      );
-                    },
-                    child: const Text('Parcourir les offres'),
-                  ),
-                ],
+      body: favoriteJobsAsync.when(
+        data: (jobs) {
+          if (jobs.isEmpty) {
+            return const Center(
+              child: Text(
+                'Aucune offre favorite',
+                style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
               ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16.0),
-              itemCount: _favoriteJobs.length,
-              itemBuilder: (context, index) {
-                final job = _favoriteJobs[index];
-                return JobCard(
-                  job: job,
-                  onFavoritePressed: () => _toggleFavorite(job.id),
-                );
-              },
-            ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: jobs.length,
+            itemBuilder: (context, index) {
+              final job = jobs[index];
+              return Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  title: Text(
+                    job.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.black,
+                    ),
+                  ),
+                  subtitle: Text(
+                    job.department,
+                    style: const TextStyle(color: AppColors.darkGrey),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.star, color: Colors.yellow),
+                    onPressed: () async {
+                      try {
+                        await DatabaseService().toggleFavorite(user.uid, job.id, false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Retiré des favoris')),
+                        );
+                      } catch (e) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur: $e')),
+                        );
+                      }
+                    },
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.jobDetail, arguments: job);
+                  },
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+        error: (error, _) => Center(
+          child: Text(
+            'Erreur: $error',
+            style: const TextStyle(color: AppColors.darkGrey),
+          ),
+        ),
+      ),
     );
   }
 }

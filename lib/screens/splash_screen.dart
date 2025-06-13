@@ -1,8 +1,7 @@
 import 'package:candid_app/screens/home_screen.dart';
+import 'package:candid_app/screens/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-
-
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,8 +18,7 @@ class _SplashScreenState extends State<SplashScreen> {
       Navigator.pushReplacement(
         context,
 
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-
+        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       );
     });
   }
@@ -31,7 +29,6 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.white,
 
       body: Center(child: Image.asset('images/jglogo.webp', height: 180)),
-
     );
   }
 }

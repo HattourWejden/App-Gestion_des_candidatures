@@ -1,6 +1,6 @@
+import 'package:candid_app/constants/app_routes.dart';
 import 'package:flutter/material.dart';
 import '../constants/colors.dart';
-import '../routes/app_routes.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -14,13 +14,10 @@ class WelcomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'images/jglogo.webp',
-              height: 180,
-            ),
+            Image.asset('images/jglogo.webp', height: 180),
             const SizedBox(height: 30),
             const Text(
-              'Welcome to Candidate App',
+              'Bienvenue à Candidate App',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 24,
@@ -33,22 +30,30 @@ class WelcomeScreen extends StatelessWidget {
             // Sign In
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: OutlinedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, AppRoutes.login);
                 },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primaryBlue),
+                  foregroundColor: AppColors.lightGrey,
+                  backgroundColor: AppColors.primaryBlue,
+                ),
                 child: const Text('Sign In'),
               ),
             ),
             const SizedBox(height: 16),
 
-            // Sign Up
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: () {
                   Navigator.pushNamed(context, AppRoutes.signup);
                 },
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: AppColors.primaryBlue),
+                  foregroundColor: AppColors.primaryBlue,
+                ),
                 child: const Text('Sign Up'),
               ),
             ),

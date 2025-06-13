@@ -1,451 +1,388 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import '../constants/app_routes.dart';
 import '../constants/colors.dart';
-import '../models/job_model.dart';
+import '../constants/app_routes.dart';
+import '../services/database_service.dart';
 
-class HomeScreen extends StatefulWidget {
+class Job {
+  final String id;
+  final String title;
+  final String description;
+  final String status;
+  final String department;
+  final int applicationCount;
+  final Timestamp postedDate;
+
+  Job({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.status,
+    required this.department,
+    required this.applicationCount,
+    required this.postedDate,
+  });
+
+  factory Job.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Job(
+      id: doc.id,
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      status: data['status'] ?? '',
+      department: data['department'] ?? '',
+      applicationCount: data['application_count'] ?? 0,
+      postedDate: data['postedDate'] ?? Timestamp.now(),
+    );
+  }
+}
+
+
+final jobsProvider = StreamProvider<List<Job>>((ref) {
+  return DatabaseService().getJobs().map(
+    (snapshot) => snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList(),
+  );
+});
+
+// Provider pour les statistiques
+final statsProvider = FutureProvider<Map<String, int>>((ref) async {
+  final jobsSnapshot =
+      await FirebaseFirestore.instance.collection('jobs').get();
+  final applicationsSnapshot =
+      await FirebaseFirestore.instance.collectionGroup('applications').get();
+  return {
+    'total_jobs': jobsSnapshot.docs.length,
+    'active_jobs':
+        jobsSnapshot.docs.where((doc) => doc['status'] == 'open').length,
+    'total_applications': applicationsSnapshot.docs.length,
+  };
+});
+
+// Provider pour les favoris
+final favoritesProvider = StreamProvider.family<List<String>, String>((
+  ref,
+  userId,
+) {
+  return DatabaseService().getUserFavorites(userId).map((snapshot) {
+    final data = snapshot.data() as Map<String, dynamic>?;
+    return (data?['jobs'] as List<dynamic>?)?.cast<String>() ?? [];
+  });
+});
+
+// Provider pour les filtres
+final filterProvider = StateProvider<Map<String, String?>>(
+  (ref) => {'status': null, 'department': null, 'search': null},
+);
+
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final User? _currentUser = FirebaseAuth.instance.currentUser;
-  late Stream<QuerySnapshot<Map<String, dynamic>>> _jobsStream;
-  List<Job> _filteredJobs = [];
-  bool _isLoading = false;
-  bool _hasMore = true;
-  DocumentSnapshot? _lastDocument;
-  final int _limit = 10;
-
-  @override
-  void initState() {
-    super.initState();
-    _jobsStream = _firestore.collection('jobs')
-      .orderBy('postedDate', descending: true)
-      .limit(_limit)
-      .snapshots();
-  }
-
-  List<Job> _mapDocumentsToJobs(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      return Job(
-        id: doc.id,
-        title: data['title'] ?? '',
-        company: data['company'] ?? '',
-        location: data['location'] ?? '',
-        description: data['description'] ?? '',
-        requirements: List<String>.from(data['requirements'] ?? []),
-        isFavorite: data['isFavorite'] ?? false,
-        postedDate: (data['postedDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
-        isActive: data['isActive'] ?? true,
-      );
-    }).toList();
-  }
-
-  Future<void> _loadMoreJobs() async {
-    if (!_hasMore || _isLoading) return;
-
-    setState(() => _isLoading = true);
-
-    try {
-      final query = _firestore.collection('jobs')
-        .orderBy('postedDate', descending: true)
-        .startAfterDocument(_lastDocument!)
-        .limit(_limit);
-
-      final snapshot = await query.get();
-      if (snapshot.docs.isEmpty) {
-        setState(() => _hasMore = false);
-      } else {
-        _lastDocument = snapshot.docs.last;
-        final newJobs = _mapDocumentsToJobs(snapshot);
-        setState(() => _filteredJobs.addAll(newJobs));
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erreur de chargement: ${e.toString()}')),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return const Center(child: Text('Utilisateur non connecté'));
     }
-  }
-Future<void> _toggleFavorite(Job job) async {
-  if (_currentUser == null) {
-    Navigator.pushNamed(context, AppRoutes.login);
-    return;
-  }
 
-  try {
-    await _firestore.runTransaction((transaction) async {
-      // Update job favorite status
-      transaction.update(
-        _firestore.collection('jobs').doc(job.id),
-        {'isFavorite': !job.isFavorite},
-      );
+    final jobsAsync = ref.watch(jobsProvider);
+    final statsAsync = ref.watch(statsProvider);
+    final favoritesAsync = ref.watch(favoritesProvider(user.uid));
+    final filters = ref.watch(filterProvider);
 
-      // Update user favorites
-      final userFavRef = _firestore.collection('userFavorites').doc(_currentUser!.uid);
-      final userFavDoc = await transaction.get(userFavRef);
-      
-      if (userFavDoc.exists) {
-        final data = userFavDoc.data() as Map<String, dynamic>;
-        final jobs = List<String>.from(data['jobs'] ?? []);
-        
-        if (job.isFavorite) {
-          jobs.remove(job.id);
-        } else {
-          jobs.add(job.id);
-        }
-        
-        transaction.update(userFavRef, {'jobs': jobs});
-      } else {
-        transaction.set(userFavRef, {
-          'jobs': [job.id],
-          'userId': _currentUser!.uid,
-        });
-      }
-    });
-  } catch (e) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Erreur: ${e.toString()}')),
-    );
-  }
-}
-
-  List<Job> _filterJobs(List<Job> jobs, String query) {
-    if (query.isEmpty) return jobs;
-    return jobs.where((job) {
-      return job.title.toLowerCase().contains(query.toLowerCase()) ||
-             job.company.toLowerCase().contains(query.toLowerCase());
-    }).toList();
-  }
-
-  void _showAddJobDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nouvelle Offre'),
-        content: const AddJobForm(),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              // Handle form submission
-              Navigator.pop(context);
-            },
-            child: const Text('Publier'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.lightGrey,
       appBar: AppBar(
-        title: const Text('Offres d\'emploi'),
         backgroundColor: AppColors.primaryBlue,
+        title: const Text(
+          'Tableau de bord',
+          style: TextStyle(color: Colors.white),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.favorite),
-            onPressed: () {
-              if (_currentUser == null) {
-                Navigator.pushNamed(context, AppRoutes.login);
-              } else {
-                Navigator.pushNamed(context, AppRoutes.favorites);
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            onPressed: () {
-              if (_currentUser == null) {
-                Navigator.pushNamed(context, AppRoutes.login);
-              } else {
-                Navigator.pushNamed(context, AppRoutes.profile);
-              }
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              await FirebaseAuth.instance.signOut();
+              Navigator.pushReplacementNamed(context, AppRoutes.login);
             },
           ),
         ],
       ),
       body: Column(
         children: [
+          // Barre de recherche
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: TextField(
-              controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Rechercher...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8.0),
+                hintText: 'Rechercher une offre ou candidature...',
+                prefixIcon: const Icon(
+                  Icons.search,
+                  color: AppColors.primaryBlue,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                filled: true,
+                fillColor: Colors.white,
               ),
               onChanged: (value) {
-                setState(() {});
+                ref
+                    .read(filterProvider.notifier)
+                    .update((state) => {...state, 'search': value});
               },
             ),
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _jobsStream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(child: Text('Erreur: ${snapshot.error}'));
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                final jobs = _mapDocumentsToJobs(snapshot.data!);
-                _lastDocument = snapshot.data!.docs.last;
-                _filteredJobs = _filterJobs(jobs, _searchController.text);
-
-                return NotificationListener<ScrollNotification>(
-                  onNotification: (scrollNotification) {
-                    if (scrollNotification.metrics.pixels ==
-                            scrollNotification.metrics.maxScrollExtent &&
-                        !_isLoading &&
-                        _hasMore) {
-                      _loadMoreJobs();
-                    }
-                    return false;
+          // Filtres rapides
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                DropdownButton<String>(
+                  hint: const Text('Statut'),
+                  value: filters['status'],
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Tous')),
+                    DropdownMenuItem(value: 'open', child: Text('Ouvertes')),
+                    DropdownMenuItem(value: 'closed', child: Text('Fermées')),
+                    DropdownMenuItem(
+                      value: 'in_progress',
+                      child: Text('En cours'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    ref
+                        .read(filterProvider.notifier)
+                        .update((state) => {...state, 'status': value});
                   },
-                  child: ListView.builder(
-                    itemCount: _filteredJobs.length + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == _filteredJobs.length) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: CircularProgressIndicator(),
+                ),
+                DropdownButton<String>(
+                  hint: const Text('Département'),
+                  value: filters['department'],
+                  items: const [
+                    DropdownMenuItem(value: null, child: Text('Tous')),
+                    DropdownMenuItem(value: 'IT', child: Text('Informatique')),
+                    DropdownMenuItem(value: 'HR', child: Text('RH')),
+                    DropdownMenuItem(
+                      value: 'Marketing',
+                      child: Text('Marketing'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    ref
+                        .read(filterProvider.notifier)
+                        .update((state) => {...state, 'department': value});
+                  },
+                ),
+              ],
+            ),
+          ),
+          // Statistiques rapides
+          statsAsync.when(
+            data:
+                (stats) => Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildStatCard(
+                        'Offres totales',
+                        stats['total_jobs'].toString(),
+                        AppColors.primaryBlue,
+                      ),
+                      _buildStatCard(
+                        'Offres actives',
+                        stats['active_jobs'].toString(),
+                        AppColors.primaryGreen,
+                      ),
+                      _buildStatCard(
+                        'Candidatures',
+                        stats['total_applications'].toString(),
+                        AppColors.darkGrey,
+                      ),
+                    ],
+                  ),
+                ),
+            loading: () => const CircularProgressIndicator(),
+            error:
+                (e, _) =>
+                    const Text('Erreur lors du chargement des statistiques'),
+          ),
+          // Liste des offres
+          Expanded(
+            child: jobsAsync.when(
+              data: (jobs) {
+                final filteredJobs =
+                    jobs.where((job) {
+                      final statusMatch =
+                          filters['status'] == null ||
+                          job.status == filters['status'];
+                      final deptMatch =
+                          filters['department'] == null ||
+                          job.department == filters['department'];
+                      final searchMatch =
+                          filters['search'] == null ||
+                          job.title.toLowerCase().contains(
+                            filters['search']!.toLowerCase(),
+                          ) ||
+                          job.description.toLowerCase().contains(
+                            filters['search']!.toLowerCase(),
+                          );
+                      return statusMatch && deptMatch && searchMatch;
+                    }).toList();
+
+                if (filteredJobs.isEmpty) {
+                  return const Center(child: Text('Aucune offre trouvée'));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: filteredJobs.length,
+                  itemBuilder: (context, index) {
+                    final job = filteredJobs[index];
+                    return favoritesAsync.when(
+                      data: (favorites) {
+                        final isFavorite = favorites.contains(job.id);
+                        return Card(
+                          elevation: 2,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            title: Text(
+                              job.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.black,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  job.description,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Statut: ${job.status}',
+                                  style: TextStyle(color: AppColors.darkGrey),
+                                ),
+                                Text(
+                                  'Département: ${job.department}',
+                                  style: TextStyle(color: AppColors.darkGrey),
+                                ),
+                                Text(
+                                  'Candidatures: ${job.applicationCount}',
+                                  style: TextStyle(color: AppColors.darkGrey),
+                                ),
+                              ],
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(
+                                isFavorite ? Icons.star : Icons.star_border,
+                                color: AppColors.primaryBlue,
+                              ),
+                              onPressed: () async {
+                                await DatabaseService().toggleFavorite(
+                                  user.uid,
+                                  job.id,
+                                  !isFavorite,
+                                );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isFavorite
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.jobDetail,
+                                arguments: job,
+                              );
+                            },
                           ),
                         );
-                      }
-
-                      final job = _filteredJobs[index];
-                      return JobCard(
-                        job: job,
-                        onFavoritePressed: () => _toggleFavorite(job),
-                      );
-                    },
-                  ),
+                      },
+                      loading: () => const CircularProgressIndicator(),
+                      error:
+                          (e, _) => const Text(
+                            'Erreur lors du chargement des favoris',
+                          ),
+                    );
+                  },
                 );
               },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error:
+                  (e, _) => const Center(
+                    child: Text('Erreur lors du chargement des offres'),
+                  ),
             ),
           ),
         ],
       ),
-      floatingActionButton: _currentUser != null
-          ? FloatingActionButton(
-              backgroundColor: AppColors.primaryGreen,
-              onPressed: () => _showAddJobDialog(context),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
-    );
-  }
-}
-
-class JobCard extends StatelessWidget {
-  final Job job;
-  final VoidCallback onFavoritePressed;
-
-  const JobCard({
-    super.key,
-    required this.job,
-    required this.onFavoritePressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      elevation: 2.0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8.0),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8.0),
-        onTap: () {
-          Navigator.pushNamed(
-            context,
-            AppRoutes.jobDetail,
-            arguments: job,
-          );
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primaryBlue,
+        onPressed: () {
+          Navigator.pushNamed(context, AppRoutes.createoffer);
         },
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Text(
-                      job.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(
-                      job.isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: job.isFavorite ? AppColors.primaryGreen : null,
-                    ),
-                    onPressed: onFavoritePressed,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(job.company),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16),
-                  const SizedBox(width: 4),
-                  Text(job.location),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Icon(
-                        job.isActive ? Icons.check_circle : Icons.pending,
-                        size: 16,
-                        color: job.isActive ? Colors.green : Colors.orange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        DateFormat('dd/MM/yyyy').format(job.postedDate),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        selectedItemColor: AppColors.primaryBlue,
+        unselectedItemColor: AppColors.darkGrey,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Accueil',
           ),
-        ),
+          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Offres'),
+          BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Favoris'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+        ],
+        currentIndex: 0,
+        onTap: (index) {
+          if (index == 1) {
+            Navigator.pushNamed(context, AppRoutes.jobDetail);
+          } else if (index == 2) {
+            Navigator.pushNamed(context, AppRoutes.favorites);
+          } else if (index == 3) {
+            Navigator.pushNamed(context, AppRoutes.profile);
+          }
+        },
       ),
     );
   }
-}
 
-class AddJobForm extends StatefulWidget {
-  const AddJobForm({super.key});
-
-  @override
-  State<AddJobForm> createState() => _AddJobFormState();
-}
-
-class _AddJobFormState extends State<AddJobForm> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _companyController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _requirementsController = TextEditingController();
-  final List<String> _requirements = [];
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _companyController.dispose();
-    _locationController.dispose();
-    _descriptionController.dispose();
-    _requirementsController.dispose();
-    super.dispose();
-  }
-
-  void _addRequirement() {
-    if (_requirementsController.text.isNotEmpty) {
-      setState(() {
-        _requirements.add(_requirementsController.text);
-        _requirementsController.clear();
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Form(
-      key: _formKey,
-      child: SingleChildScrollView(
+  Widget _buildStatCard(String title, String value, Color color) {
+    return Card(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: const InputDecoration(labelText: 'Titre du poste'),
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Ce champ est requis' : null,
-            ),
-            TextFormField(
-              controller: _companyController,
-              decoration: const InputDecoration(labelText: 'Entreprise'),
-              validator: (value) =>
-                  value?.isEmpty ?? true ? 'Ce champ est requis' : null,
-            ),
-            TextFormField(
-              controller: _locationController,
-              decoration: const InputDecoration(labelText: 'Localisation'),
-            ),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(labelText: 'Description'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _requirementsController,
-                    decoration: const InputDecoration(
-                      labelText: 'Exigences',
-                      hintText: 'Ajouter une exigence',
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: _addRequirement,
-                ),
-              ],
-            ),
-            if (_requirements.isNotEmpty)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Exigences:'),
-                  ..._requirements.map((req) => ListTile(
-                        leading: const Icon(Icons.circle, size: 8),
-                        title: Text(req),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.remove, size: 16),
-                          onPressed: () {
-                            setState(() => _requirements.remove(req));
-                          },
-                        ),
-                      )),
-                ],
+            Text(title, style: const TextStyle(color: AppColors.darkGrey)),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: color,
               ),
+            ),
           ],
         ),
       ),
