@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_routes.dart';
 import '../constants/colors.dart';
 import '../services/auth_service.dart';
-import '../services/database_service.dart';
+import '../models/user_role.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -19,18 +19,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _agreedToTerms = false;
+
   bool _isLoading = false;
   bool _obscurePassword = false;
   bool _obscureConfirmPassword = false;
+  UserRole? _selectedRole;
 
   Future<void> _onSignUpPressed() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_agreedToTerms) {
+
+    if (_selectedRole == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vous devez accepter les conditions d\'utilisation'),
-        ),
+        const SnackBar(content: Text('Veuillez sélectionner un rôle')),
       );
       return;
     }
@@ -43,14 +43,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
       final user = await auth.registerWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        _nameController.text.trim(),
+        _selectedRole!,
       );
 
       if (user != null && mounted) {
-        await DatabaseService().updateUserProfile(user.uid, {
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
         Navigator.pushReplacementNamed(context, AppRoutes.home);
       } else {
         throw Exception('Utilisateur non créé');
@@ -175,6 +172,44 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<UserRole>(
+                    value: _selectedRole,
+                    hint: const Text('Sélectionnez votre rôle'),
+                    decoration: InputDecoration(
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AppColors.darkGrey),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.group,
+                        color: AppColors.primaryBlue,
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: UserRole.candidate,
+                        child: Text('Candidat'),
+                      ),
+                      DropdownMenuItem(
+                        value: UserRole.recruiter,
+                        child: Text('Recruteur'),
+                      ),
+                    ],
+                    onChanged: (UserRole? newValue) {
+                      setState(() {
+                        _selectedRole = newValue;
+                      });
+                    },
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Veuillez sélectionner un rôle';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -251,34 +286,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _agreedToTerms,
-                        onChanged: (bool? newValue) {
-                          setState(() {
-                            _agreedToTerms = newValue ?? false;
-                          });
-                        },
-                        activeColor: AppColors.primaryBlue,
-                      ),
-                      const Text("J'accepte les "),
-                      GestureDetector(
-                        onTap: () {
-                          // TODO: Implémenter la navigation vers les conditions
-                        },
-                        child: const Text(
-                          "conditions d'utilisation",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
-                            color: AppColors.primaryBlue,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _onSignUpPressed,
@@ -322,7 +330,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
             ),
           ),
-
           Positioned(
             bottom: 16.0,
             right: 16.0,

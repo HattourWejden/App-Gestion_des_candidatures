@@ -1,3 +1,4 @@
+import 'package:candid_app/models/job.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -5,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/colors.dart';
 import '../constants/app_routes.dart';
 import '../services/database_service.dart';
-import 'home_screen.dart'; // Import for Job model
+
 
 // Provider for favorite jobs
 final favoriteJobsProvider = StreamProvider<List<Job>>((ref) async* {
