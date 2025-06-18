@@ -1,70 +1,49 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_routes.dart';
 import '../constants/colors.dart';
 import '../services/auth_service.dart';
 
-class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+class SignupScreen extends ConsumerStatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  State<SignUpScreen> createState() => _SignUpScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignUpScreenState extends State<SignUpScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
 
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  bool _obscurePassword = false;
-  bool _obscureConfirmPassword = false;
 
-  Future<void> _onSignUpPressed() async {
+  Future<void> _onSignupPressed() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final auth = AuthService();
+      await ref.read(authServiceProvider).registerWithEmailAndPassword(
 
-      final user = await auth.registerWithEmailAndPassword(
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _nameController.text.trim(),
       );
 
-      if (user != null && mounted) {
+      if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
-      } else {
-        throw Exception('Utilisateur non créé');
       }
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      String errorMessage;
-      switch (e.code) {
-        case 'email-already-in-use':
-          errorMessage = 'Cet email est déjà utilisé';
-          break;
-        case 'invalid-email':
-          errorMessage = 'Email invalide';
-          break;
-        case 'weak-password':
-          errorMessage = 'Mot de passe trop faible';
-          break;
-        default:
-          errorMessage = 'Erreur d\'inscription: ${e.message}';
-      }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur lors de l\'inscription: $e')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -72,17 +51,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final paddingTop = screenHeight * 0.1;
+    final paddingTop = screenHeight * 0.2;
 
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
@@ -96,7 +75,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               child: ListView(
                 children: [
                   const Text(
-                    "Bienvenue",
+                    "Créer un compte",
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -112,7 +91,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      hintText: 'Nom',
+                      hintText: 'Nom complet',
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -125,7 +104,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (value == null || value.trim().isEmpty) {
                         return 'Veuillez entrer votre nom';
                       }
                       return null;
@@ -135,7 +114,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   TextFormField(
                     controller: _emailController,
                     decoration: InputDecoration(
-                      hintText: 'Email',
+                      hintText: 'johndoe@mail.com',
                       filled: true,
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
@@ -213,7 +192,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderSide: const BorderSide(color: AppColors.darkGrey),
                       ),
                       prefixIcon: const Icon(
-                        Icons.lock,
+                        Icons.lock_outline,
                         color: AppColors.primaryBlue,
                       ),
                       suffixIcon: IconButton(
@@ -237,9 +216,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _onSignUpPressed,
+                    onPressed: _isLoading ? null : _onSignupPressed,
                     style: ElevatedButton.styleFrom(
                       minimumSize: const Size.fromHeight(50),
                       backgroundColor: AppColors.primaryBlue,
@@ -248,22 +227,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child: _isLoading
-                        ? const CircularProgressIndicator(
-                            color: Colors.white,
-                          )
-                        : const Text(
-                            "S'inscrire",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                    child:
+                        _isLoading
+                            ? const CircularProgressIndicator(
+                              color: Colors.white,
+                            )
+                            : const Text(
+                              "S'inscrire",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Vous avez un compte ? "),
+                      const Text("Déjà un compte ? "),
                       GestureDetector(
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.login),
+                        onTap:
+                            () => Navigator.pushNamed(context, AppRoutes.login),
                         child: const Text(
                           "Se connecter",
                           style: TextStyle(
@@ -276,15 +257,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
-          Positioned(
-            bottom: 16.0,
-            right: 16.0,
-            child: Image.asset(
-              'images/jglogo-removebg-preview.png',
-              height: 100,
-              width: 100,
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 
 import 'package:candid_app/providers.dart';
 import 'package:candid_app/screens/home_screen.dart';
+import 'package:candid_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';

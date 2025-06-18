@@ -1,10 +1,8 @@
-import 'package:candid_app/providers.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
-
+import 'package:candid_app/providers.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -26,7 +24,6 @@ class AuthService {
       );
       final user = credential.user;
       if (user != null) {
-        // Create user profile in Firestore
         await _ref.read(databaseServiceProvider).updateUserProfile(user.uid, {
           'name': name,
           'email': email,
@@ -35,7 +32,7 @@ class AuthService {
         });
       }
     } catch (e) {
-      throw Exception('Erreur lors de l\'inscription: $e');
+      throw Exception('Erreur lors de l\'inscription : $e');
     }
   }
 
@@ -47,12 +44,12 @@ class AuthService {
       );
       final user = credential.user;
       if (user != null) {
-        // Verify or set role on sign-in
         final userDoc =
             await FirebaseFirestore.instance
                 .collection('users')
                 .doc(user.uid)
                 .get();
+
         if (!userDoc.exists || userDoc.data()?['role'] != 'recruiter') {
           await _ref.read(databaseServiceProvider).updateUserProfile(user.uid, {
             'name': userDoc.data()?['name'] ?? 'Recruiter',
@@ -64,7 +61,7 @@ class AuthService {
         }
       }
     } catch (e) {
-      throw Exception('Erreur lors de la connexion: $e');
+      throw Exception('Erreur lors de la connexion : $e');
     }
   }
 
@@ -73,4 +70,5 @@ class AuthService {
   }
 }
 
+final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref));
 

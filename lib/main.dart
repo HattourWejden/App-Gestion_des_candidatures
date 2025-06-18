@@ -67,7 +67,7 @@ import 'screens/profile_screen.dart';
              AppRoutes.welcome: (_) => const WelcomeScreen(),
              AppRoutes.login: (_) => const LoginScreen(),
              AppRoutes.forgotPassword: (_) => const ForgotPasswordScreen(),
-             AppRoutes.signup: (_) => const SignUpScreen(),
+             AppRoutes.signup: (_) => const SignupScreen(),
              AppRoutes.home: (_) => const HomeScreen(),
              AppRoutes.jobDetail: (_) => const JobDetailScreen(),
              AppRoutes.favorites: (_) => const FavoritesScreen(),

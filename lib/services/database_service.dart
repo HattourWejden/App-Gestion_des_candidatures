@@ -121,4 +121,15 @@ class DatabaseService {
       throw Exception('Erreur lors de la mise à jour du profil: $e');
     }
   }
+
+  // New method to update application count
+  Future<void> updateApplicationCount(String jobId, int newCount) async {
+    try {
+      await _firestore.collection('jobs').doc(jobId).update({
+        'application_count': newCount,
+      });
+    } catch (e) {
+      throw Exception('Erreur lors de la mise à jour du compteur de candidatures: $e');
+    }
+  }
 }

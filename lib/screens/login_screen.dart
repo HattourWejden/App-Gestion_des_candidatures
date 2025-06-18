@@ -3,37 +3,37 @@ import 'package:flutter/material.dart';
 import '../constants/app_routes.dart';
 import '../constants/colors.dart';
 import '../services/auth_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool rememberMe = false;
   bool _isLoading = false;
   bool _obscurePassword = false;
-  final _formKey = GlobalKey<FormState>();
 
+  final _formKey = GlobalKey<FormState>();
   Future<void> _onSignInPressed() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final user = await AuthService().signInWithEmailAndPassword(
+      await ref.read(authServiceProvider).signInWithEmailAndPassword(
+
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
-      print('Utilisateur retourné: $user, Type: ${user.runtimeType}');
-      if (user != null && mounted) {
+
+      if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
-      } else {
-        throw Exception('Connexion échouée');
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -57,7 +57,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ).showSnackBar(SnackBar(content: Text(errorMessage)));
     } catch (e) {
       if (!mounted) return;
-      print('Exception capturée: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));

@@ -75,7 +75,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     fillColor: Colors.white,
                   ),
                   onChanged: (value) {
-                    ref.read(filterProvider.notifier).update((state) => {...state, 'search': value});
+                    ref
+                        .read(filterProvider.notifier)
+                        .update((state) => {...state, 'search': value});
                   },
                 ),
               ),
@@ -91,12 +93,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       value: ref.watch(filterProvider)['status'],
                       items: const [
                         DropdownMenuItem(value: null, child: Text('Tous')),
-                        DropdownMenuItem(value: 'open', child: Text('Ouvertes')),
-                        DropdownMenuItem(value: 'closed', child: Text('Fermées')),
-                        DropdownMenuItem(value: 'in_progress', child: Text('En cours')),
+                        DropdownMenuItem(
+                          value: 'open',
+                          child: Text('Ouvertes'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'closed',
+                          child: Text('Fermées'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'in_progress',
+                          child: Text('En cours'),
+                        ),
                       ],
                       onChanged: (value) {
-                        ref.read(filterProvider.notifier).update((state) => {...state, 'status': value});
+                        ref
+                            .read(filterProvider.notifier)
+                            .update((state) => {...state, 'status': value});
                       },
                     ),
                     _buildFilterDropdown(
@@ -105,12 +118,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       value: ref.watch(filterProvider)['department'],
                       items: const [
                         DropdownMenuItem(value: null, child: Text('Tous')),
-                        DropdownMenuItem(value: 'IT', child: Text('Informatique')),
+                        DropdownMenuItem(
+                          value: 'IT',
+                          child: Text('Informatique'),
+                        ),
                         DropdownMenuItem(value: 'HR', child: Text('RH')),
-                        DropdownMenuItem(value: 'Marketing', child: Text('Marketing')),
+                        DropdownMenuItem(
+                          value: 'Marketing',
+                          child: Text('Marketing'),
+                        ),
                       ],
                       onChanged: (value) {
-                        ref.read(filterProvider.notifier).update((state) => {...state, 'department': value});
+                        ref
+                            .read(filterProvider.notifier)
+                            .update((state) => {...state, 'department': value});
                       },
                     ),
                   ],
@@ -118,133 +139,167 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               // Statistiques rapides
               statsAsync.when(
-                data: (stats) => Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Expanded(
-                        child: _buildStatCard(
-                          'Offres totales',
-                          stats['total_jobs'].toString(),
-                          AppColors.primaryBlue,
-                        ),
+                data:
+                    (stats) => Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          Expanded(
+                            child: _buildStatCard(
+                              'Offres totales',
+                              stats['total_jobs'].toString(),
+                              AppColors.primaryBlue,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Offres actives',
+                              stats['active_jobs'].toString(),
+                              AppColors.primaryGreen,
+                            ),
+                          ),
+                          Expanded(
+                            child: _buildStatCard(
+                              'Candidatures',
+                              stats['total_applications'].toString(),
+                              AppColors.darkGrey,
+                            ),
+                          ),
+                        ],
                       ),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Offres actives',
-                          stats['active_jobs'].toString(),
-                          AppColors.primaryGreen,
-                        ),
-                      ),
-                      Expanded(
-                        child: _buildStatCard(
-                          'Candidatures',
-                          stats['total_applications'].toString(),
-                          AppColors.darkGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    ),
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => const Text('Erreur lors du chargement des statistiques'),
+                error:
+                    (e, _) => const Text(
+                      'Erreur lors du chargement des statistiques',
+                    ),
               ),
               // Liste des offres
               Expanded(
                 child: favoritesAsync.when(
-                  data: (favorites) => jobsAsync.when(
-                    data: (jobs) {
-                      if (jobs.isEmpty) {
-                        return const Center(child: Text('Aucune offre trouvée'));
-                      }
-                      return ListView.builder(
-                        padding: const EdgeInsets.all(16.0),
-                        itemCount: jobs.length,
-                        itemBuilder: (context, index) {
-                          final job = jobs[index];
-                          final isFavorite = favorites.contains(job.id);
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.only(bottom: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              title: Text(
-                                job.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.black,
+                  data:
+                      (favorites) => jobsAsync.when(
+                        data: (jobs) {
+                          if (jobs.isEmpty) {
+                            return const Center(
+                              child: Text('Aucune offre trouvée'),
+                            );
+                          }
+                          return ListView.builder(
+                            padding: const EdgeInsets.all(16.0),
+                            itemCount: jobs.length,
+                            itemBuilder: (context, index) {
+                              final job = jobs[index];
+                              final isFavorite = favorites.contains(job.id);
+                              return Card(
+                                elevation: 2,
+                                margin: const EdgeInsets.only(bottom: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    job.description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                child: ListTile(
+                                  contentPadding: const EdgeInsets.all(16),
+                                  title: Text(
+                                    job.title,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.black,
+                                    ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Statut: ${job.status}',
-                                    style: TextStyle(color: AppColors.darkGrey),
-                                  ),
-                                  Text(
-                                    'Département: ${job.department}',
-                                    style: TextStyle(color: AppColors.darkGrey),
-                                  ),
-                                  Text(
-                                    'Candidatures: ${job.applicationCount}',
-                                    style: TextStyle(color: AppColors.darkGrey),
-                                  ),
-                                ],
-                              ),
-                              trailing: IconButton(
-                                icon: Icon(
-                                  isFavorite ? Icons.star : Icons.star_border,
-                                  color: AppColors.primaryBlue,
-                                ),
-                                onPressed: () async {
-                                  try {
-                                    await DatabaseService().toggleFavorite(
-                                      user.uid,
-                                      job.id,
-                                      !isFavorite,
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        job.description,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Statut: ${job.status}',
+                                        style: TextStyle(
+                                          color: AppColors.darkGrey,
                                         ),
                                       ),
+                                      Text(
+                                        'Département: ${job.department}',
+                                        style: TextStyle(
+                                          color: AppColors.darkGrey,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Candidatures: ${job.applicationCount}',
+                                        style: TextStyle(
+                                          color: AppColors.darkGrey,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  trailing: IconButton(
+                                    icon: Icon(
+                                      isFavorite
+                                          ? Icons.star
+                                          : Icons.star_border,
+                                      color: AppColors.primaryBlue,
+                                    ),
+                                    onPressed: () async {
+                                      try {
+                                        await DatabaseService().toggleFavorite(
+                                          user.uid,
+                                          job.id,
+                                          !isFavorite,
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              isFavorite
+                                                  ? 'Retiré des favoris'
+                                                  : 'Ajouté aux favoris',
+                                            ),
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(content: Text('Erreur: $e')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.jobDetail,
+                                      arguments: job,
                                     );
-                                  } catch (e) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Erreur: $e')),
-                                    );
-                                  }
-                                },
-                              ),
-                              onTap: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.jobDetail,
-                                  arguments: job,
-                                );
-                              },
-                            ),
+                                  },
+                                ),
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => const Center(child: Text('Erreur lors du chargement des offres')),
-                  ),
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => const Center(child: Text('Erreur lors du chargement des favoris')),
+                        loading:
+                            () => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                        error:
+                            (e, _) => const Center(
+                              child: Text(
+                                'Erreur lors du chargement des offres',
+                              ),
+                            ),
+                      ),
+                  loading:
+                      () => const Center(child: CircularProgressIndicator()),
+                  error:
+                      (e, _) => const Center(
+                        child: Text('Erreur lors du chargement des favoris'),
+                      ),
                 ),
               ),
             ],
@@ -274,7 +329,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 label: 'Accueil',
               ),
               BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Favoris'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profil',
+              ),
             ],
           ),
         );
@@ -337,4 +395,3 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 }
-
