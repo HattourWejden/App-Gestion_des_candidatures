@@ -33,7 +33,7 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         status: _status,
         department: _department,
         applicationCount: 0,
-        postedDate: null, // Set by DatabaseService.addJob
+      
       );
 
       await DatabaseService().addJob(job);
@@ -42,7 +42,11 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Offre créée avec succès')),
         );
-        Navigator.pop(context);
+        // Invalidate providers to refresh HomeScreen
+        final navigator = Navigator.of(context);
+        navigator.pop(); // Return to HomeScreen
+        // Optional: Use a global key or provider to force refresh
+        // For now, rely on stream updates
       }
     } on FirebaseException catch (e) {
       if (mounted) {
@@ -52,15 +56,15 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
         } else if (e.code == 'unavailable') {
           errorMessage = 'Vérifiez votre connexion réseau';
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur inattendue: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -157,7 +161,10 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                     items: const [
                       DropdownMenuItem(value: 'open', child: Text('Ouverte')),
                       DropdownMenuItem(value: 'closed', child: Text('Fermée')),
-                      DropdownMenuItem(value: 'in_progress', child: Text('En cours')),
+                      DropdownMenuItem(
+                        value: 'in_progress',
+                        child: Text('En cours'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -181,10 +188,19 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                     hint: const Text('Département'),
                     value: _department,
                     items: const [
-                      DropdownMenuItem(value: 'IT', child: Text('Informatique')),
+                      DropdownMenuItem(
+                        value: 'IT',
+                        child: Text('Informatique'),
+                      ),
                       DropdownMenuItem(value: 'HR', child: Text('RH')),
-                      DropdownMenuItem(value: 'Marketing', child: Text('Marketing')),
-                      DropdownMenuItem(value: 'Non spécifié', child: Text('Non spécifié')),
+                      DropdownMenuItem(
+                        value: 'Marketing',
+                        child: Text('Marketing'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Non spécifié',
+                        child: Text('Non spécifié'),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value != null) {
@@ -198,14 +214,17 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               ElevatedButton(
                 onPressed: _isLoading ? null : _onSavePressed,
                 style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
-                      minimumSize: WidgetStateProperty.all(const Size.fromHeight(50)),
-                    ),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        'Enregistrer',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
+                  minimumSize: WidgetStateProperty.all(
+                    const Size.fromHeight(50),
+                  ),
+                ),
+                child:
+                    _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                          'Enregistrer',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
               ),
               const SizedBox(height: 12),
               TextButton(
