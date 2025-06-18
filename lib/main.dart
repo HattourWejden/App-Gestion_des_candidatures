@@ -73,6 +73,7 @@ import 'screens/profile_screen.dart';
              AppRoutes.favorites: (_) => const FavoritesScreen(),
              AppRoutes.profile: (_) => const ProfileScreen(),
              AppRoutes.createoffer: (_) => const CreateOfferScreen(),
+  
            },
          );
        }

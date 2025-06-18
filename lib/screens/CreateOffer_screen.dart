@@ -1,64 +1,81 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../constants/app_routes.dart';
 import '../constants/colors.dart';
 import '../services/database_service.dart';
+import '../models/job.dart';
 
-final createOfferFormProvider = StateProvider<Map<String, String>>(
-  (ref) => {
-    'title': '',
-    'description': '',
-    'status': 'open',
-    'department': 'Informatique',
-  },
-);
-
-class CreateOfferScreen extends ConsumerStatefulWidget {
+class CreateOfferScreen extends StatefulWidget {
   const CreateOfferScreen({super.key});
 
   @override
-  ConsumerState<CreateOfferScreen> createState() => _CreateOfferScreenState();
+  State<CreateOfferScreen> createState() => _CreateOfferScreenState();
 }
 
-class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
-  final formKey = GlobalKey<FormState>();
-  late TextEditingController titleController;
-  late TextEditingController descriptionController;
+class _CreateOfferScreenState extends State<CreateOfferScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  String _status = 'open'; // Default value
+  String _department = 'Non spécifié'; // Default value
+  bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    final formState = ref.read(createOfferFormProvider);
-    titleController = TextEditingController(text: formState['title']);
-    descriptionController = TextEditingController(
-      text: formState['description'],
-    );
+  Future<void> _onSavePressed() async {
+    if (!_formKey.currentState!.validate()) return;
 
-    titleController.addListener(() {
-      ref
-          .read(createOfferFormProvider.notifier)
-          .update((state) => {...state, 'title': titleController.text});
-    });
+    setState(() => _isLoading = true);
 
-    descriptionController.addListener(() {
-      ref
-          .read(createOfferFormProvider.notifier)
-          .update(
-            (state) => {...state, 'description': descriptionController.text},
-          );
-    });
+    try {
+      final job = Job(
+        id: '', // Firestore generates ID
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        status: _status,
+        department: _department,
+        applicationCount: 0,
+        postedDate: null, // Set by DatabaseService.addJob
+      );
+
+      await DatabaseService().addJob(job);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Offre créée avec succès')),
+        );
+        Navigator.pop(context);
+      }
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        String errorMessage = 'Erreur lors de la création de l\'offre';
+        if (e.code == 'permission-denied') {
+          errorMessage = 'Vous n\'avez pas la permission de créer une offre';
+        } else if (e.code == 'unavailable') {
+          errorMessage = 'Vérifiez votre connexion réseau';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur inattendue: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   void dispose() {
-    titleController.dispose();
-    descriptionController.dispose();
+    _titleController.dispose();
+    _descriptionController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final formState = ref.watch(createOfferFormProvider);
-
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
       appBar: AppBar(
@@ -67,42 +84,49 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
           'Créer une offre',
           style: TextStyle(color: Colors.white),
         ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: formKey,
+          key: _formKey,
           child: ListView(
             children: [
               TextFormField(
-                controller: titleController,
+                controller: _titleController,
                 decoration: InputDecoration(
-                  labelText: 'Titre',
+                  hintText: 'Titre de l\'offre',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.darkGrey),
                   ),
                   prefixIcon: const Icon(
-                    Icons.title,
+                    Icons.work,
                     color: AppColors.primaryBlue,
                   ),
                 ),
-                validator:
-                    (value) =>
-                        (value == null || value.isEmpty)
-                            ? 'Veuillez entrer un titre'
-                            : null,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Veuillez entrer un titre';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               TextFormField(
-                controller: descriptionController,
+                controller: _descriptionController,
                 decoration: InputDecoration(
-                  labelText: 'Description',
+                  hintText: 'Description de l\'offre',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.darkGrey),
                   ),
                   prefixIcon: const Icon(
                     Icons.description,
@@ -110,127 +134,91 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                   ),
                 ),
                 maxLines: 5,
-                validator:
-                    (value) =>
-                        (value == null || value.isEmpty)
-                            ? 'Veuillez entrer une description'
-                            : null,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Veuillez entrer une description';
+                  }
+                  return null;
+                },
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Statut',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.flag,
-                    color: AppColors.primaryBlue,
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.darkGrey),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Text('Statut'),
+                    value: _status,
+                    items: const [
+                      DropdownMenuItem(value: 'open', child: Text('Ouverte')),
+                      DropdownMenuItem(value: 'closed', child: Text('Fermée')),
+                      DropdownMenuItem(value: 'in_progress', child: Text('En cours')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _status = value);
+                      }
+                    },
                   ),
                 ),
-                value: formState['status'],
-                items: const [
-                  DropdownMenuItem(value: 'open', child: Text('Ouverte')),
-                  DropdownMenuItem(value: 'closed', child: Text('Fermée')),
-                  DropdownMenuItem(
-                    value: 'in_progress',
-                    child: Text('En cours'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(createOfferFormProvider.notifier)
-                        .update((state) => {...state, 'status': value});
-                  }
-                },
-                validator:
-                    (value) =>
-                        (value == null)
-                            ? 'Veuillez sélectionner un statut'
-                            : null,
               ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Département',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.business,
-                    color: AppColors.primaryBlue,
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.darkGrey),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    isExpanded: true,
+                    hint: const Text('Département'),
+                    value: _department,
+                    items: const [
+                      DropdownMenuItem(value: 'IT', child: Text('Informatique')),
+                      DropdownMenuItem(value: 'HR', child: Text('RH')),
+                      DropdownMenuItem(value: 'Marketing', child: Text('Marketing')),
+                      DropdownMenuItem(value: 'Non spécifié', child: Text('Non spécifié')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() => _department = value);
+                      }
+                    },
                   ),
                 ),
-                value: formState['department'],
-                items: const [
-                  DropdownMenuItem(
-                    value: 'Informatique',
-                    child: Text('Informatique'),
-                  ),
-                  DropdownMenuItem(value: 'RH', child: Text('RH')),
-                  DropdownMenuItem(
-                    value: 'Marketing',
-                    child: Text('Marketing'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    ref
-                        .read(createOfferFormProvider.notifier)
-                        .update((state) => {...state, 'department': value});
-                  }
-                },
-                validator:
-                    (value) =>
-                        (value == null)
-                            ? 'Veuillez sélectionner un département'
-                            : null,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: () async {
-                  if (formKey.currentState!.validate()) {
-                    try {
-                      await DatabaseService().addJob({
-                        'title': formState['title'],
-                        'description': formState['description'],
-                        'status': formState['status'],
-                        'department': formState['department'],
-                        'application_count': 0,
-                      });
-                      // ✅ Important: signaler à Home que l’offre est créée
-                      Navigator.pop(context, true);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Offre créée avec succès'),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Erreur lors de la création: $e'),
-                        ),
-                      );
-                    }
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: AppColors.primaryBlue,
-                  foregroundColor: Colors.white,
+                onPressed: _isLoading ? null : _onSavePressed,
+                style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
+                      minimumSize: WidgetStateProperty.all(const Size.fromHeight(50)),
+                    ),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
+                        'Enregistrer',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryBlue,
+                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
+                    side: const BorderSide(color: AppColors.primaryBlue),
                   ),
                 ),
-                child: const Text(
-                  'Créer l\'offre',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                child: const Text('Annuler'),
               ),
             ],
           ),

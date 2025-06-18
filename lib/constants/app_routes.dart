@@ -8,4 +8,5 @@ class AppRoutes {
   static const String createoffer = '/createoffer';
   static const String jobDetail = '/jobDetail';
   static const String profile = '/profile';
+  static const String provider = '/provider';
 }

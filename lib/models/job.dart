@@ -1,6 +1,4 @@
-import 'package:candid_app/services/database_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class Job {
   final String id;
@@ -9,7 +7,7 @@ class Job {
   final String status;
   final String department;
   final int applicationCount;
-  final Timestamp postedDate;
+  final DateTime? postedDate;
 
   Job({
     required this.id,
@@ -18,7 +16,7 @@ class Job {
     required this.status,
     required this.department,
     required this.applicationCount,
-    required this.postedDate,
+    this.postedDate,
   });
 
   factory Job.fromFirestore(DocumentSnapshot doc) {
@@ -27,43 +25,10 @@ class Job {
       id: doc.id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      status: data['status'] ?? '',
-      department: data['department'] ?? '',
+      status: data['status'] ?? 'open',
+      department: data['department'] ?? 'Non spécifié',
       applicationCount: data['application_count'] ?? 0,
-      postedDate: data['postedDate'] ?? Timestamp.now(),
+      postedDate: (data['postedDate'] as Timestamp?)?.toDate(),
     );
   }
 }
-
-final jobsProvider = StreamProvider<List<Job>>((ref) {
-  return DatabaseService().getJobs().map(
-    (snapshot) => snapshot.docs.map((doc) => Job.fromFirestore(doc)).toList(),
-  );
-});
-
-final statsProvider = FutureProvider<Map<String, int>>((ref) async {
-  final jobsSnapshot =
-      await FirebaseFirestore.instance.collection('jobs').get();
-  final applicationsSnapshot =
-      await FirebaseFirestore.instance.collectionGroup('applications').get();
-  return {
-    'total_jobs': jobsSnapshot.docs.length,
-    'active_jobs':
-        jobsSnapshot.docs.where((doc) => doc['status'] == 'open').length,
-    'total_applications': applicationsSnapshot.docs.length,
-  };
-});
-
-final favoritesProvider = StreamProvider.family<List<String>, String>((
-  ref,
-  userId,
-) {
-  return DatabaseService().getUserFavorites(userId).map((snapshot) {
-    final data = snapshot.data() as Map<String, dynamic>?;
-    return (data?['jobs'] as List<dynamic>?)?.cast<String>() ?? [];
-  });
-});
-
-final filterProvider = StateProvider<Map<String, String?>>(
-  (ref) => {'status': null, 'department': null, 'search': null},
-);

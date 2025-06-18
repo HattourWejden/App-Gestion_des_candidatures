@@ -1,10 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_routes.dart';
 import '../constants/colors.dart';
 import '../services/auth_service.dart';
-import '../models/user_role.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -23,17 +21,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isLoading = false;
   bool _obscurePassword = false;
   bool _obscureConfirmPassword = false;
-  UserRole? _selectedRole;
 
   Future<void> _onSignUpPressed() async {
     if (!_formKey.currentState!.validate()) return;
-
-    if (_selectedRole == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Veuillez sélectionner un rôle')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -44,7 +34,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
         _emailController.text.trim(),
         _passwordController.text.trim(),
         _nameController.text.trim(),
-        _selectedRole!,
       );
 
       if (user != null && mounted) {
@@ -172,44 +161,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<UserRole>(
-                    value: _selectedRole,
-                    hint: const Text('Sélectionnez votre rôle'),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppColors.darkGrey),
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.group,
-                        color: AppColors.primaryBlue,
-                      ),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: UserRole.candidate,
-                        child: Text('Candidat'),
-                      ),
-                      DropdownMenuItem(
-                        value: UserRole.recruiter,
-                        child: Text('Recruteur'),
-                      ),
-                    ],
-                    onChanged: (UserRole? newValue) {
-                      setState(() {
-                        _selectedRole = newValue;
-                      });
-                    },
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Veuillez sélectionner un rôle';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
@@ -286,7 +237,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       return null;
                     },
                   ),
-
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _onSignUpPressed,
@@ -298,15 +248,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child:
-                        _isLoading
-                            ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                            : const Text(
-                              "S'inscrire",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(
+                            color: Colors.white,
+                          )
+                        : const Text(
+                            "S'inscrire",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -314,8 +263,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       const Text("Vous avez un compte ? "),
                       GestureDetector(
-                        onTap:
-                            () => Navigator.pushNamed(context, AppRoutes.login),
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.login),
                         child: const Text(
                           "Se connecter",
                           style: TextStyle(
