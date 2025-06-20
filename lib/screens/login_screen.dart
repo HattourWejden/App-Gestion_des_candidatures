@@ -18,19 +18,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool rememberMe = false;
   bool _isLoading = false;
   bool _obscurePassword = false;
+  String? _rememberMeError; // To store checkbox error message
 
   final _formKey = GlobalKey<FormState>();
+
   Future<void> _onSignInPressed() async {
-    if (!_formKey.currentState!.validate()) return;
+    // Reset error message
+    setState(() {
+      _rememberMeError = null;
+    });
+
+    // Validate form fields and checkbox
+    if (!_formKey.currentState!.validate() || !rememberMe) {
+      if (!rememberMe) {
+        setState(() {
+          _rememberMeError = 'Veuillez cocher "Se souvenir de moi"';
+        });
+      }
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authServiceProvider).signInWithEmailAndPassword(
-
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
+      await ref
+          .read(authServiceProvider)
+          .signInWithEmailAndPassword(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+          );
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
@@ -98,7 +114,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    "Connectez-vous pour continuez ",
+                    "Connectez-vous pour continuer",
                     style: TextStyle(color: AppColors.darkGrey),
                   ),
                   const SizedBox(height: 32),
@@ -171,38 +187,73 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Checkbox(
-                            value: rememberMe,
-                            onChanged: (value) {
-                              setState(() {
-                                rememberMe = value ?? false;
-                              });
-                            },
-                            activeColor: AppColors.primaryBlue,
+                          Row(
+                            children: [
+                              Checkbox(
+                                value: rememberMe,
+                                onChanged: (value) {
+                                  setState(() {
+                                    rememberMe = value ?? false;
+                                    _rememberMeError =
+                                        null; // Clear error when checkbox is toggled
+                                  });
+                                },
+                                activeColor: AppColors.primaryBlue,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                  side:
+                                      _rememberMeError != null
+                                          ? const BorderSide(
+                                            color: Color.fromARGB(
+                                              255,
+                                              194,
+                                              53,
+                                              43,
+                                            ),
+                                          )
+                                          : const BorderSide(
+                                            color: Colors.transparent,
+                                          ), // Default to transparent
+                                ),
+                                semanticLabel: 'Se souvenir de moi',
+                              ),
+                              const Text("Se souvenir de moi"),
+                            ],
                           ),
-                          const Text("Se souvenir de moi"),
+                          Flexible(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.forgotPassword,
+                                );
+                              },
+                              child: const Text(
+                                "Mot de passe oublié ?",
+                                style: TextStyle(color: AppColors.primaryBlue),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                      Flexible(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.forgotPassword,
-                            );
-                          },
-                          child: const Text(
-                            "Mot de passe oublié ?",
-                            style: TextStyle(color: AppColors.primaryBlue),
-                            overflow: TextOverflow.ellipsis,
+                      if (_rememberMeError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16.0, top: 4.0),
+                          child: Text(
+                            _rememberMeError!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
