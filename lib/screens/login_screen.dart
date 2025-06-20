@@ -17,7 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController();
   bool rememberMe = false;
   bool _isLoading = false;
-  bool _obscurePassword = false;
+  bool _obscurePassword = true;
   String? _rememberMeError; // To store checkbox error message
 
   final _formKey = GlobalKey<FormState>();

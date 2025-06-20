@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/job.dart';
 
 class DatabaseService {
@@ -13,6 +14,7 @@ class DatabaseService {
         'department': job.department,
         'application_count': job.applicationCount,
         'postedDate': FieldValue.serverTimestamp(),
+        'createdBy': FirebaseAuth.instance.currentUser?.uid,
       });
     } catch (e) {
       throw Exception('Erreur lors de l\'ajout de l\'offre: $e');
@@ -34,6 +36,11 @@ class DatabaseService {
       }
       if (department != null) {
         query = query.where('department', isEqualTo: department);
+      }
+      if (search != null && search.isNotEmpty) {
+        query = query
+            .where('title', isGreaterThanOrEqualTo: search)
+            .where('title', isLessThanOrEqualTo: search + '\uf8ff');
       }
 
       return query.snapshots().map(
@@ -129,7 +136,9 @@ class DatabaseService {
         'application_count': newCount,
       });
     } catch (e) {
-      throw Exception('Erreur lors de la mise à jour du compteur de candidatures: $e');
+      throw Exception(
+        'Erreur lors de la mise à jour du compteur de candidatures: $e',
+      );
     }
   }
 }

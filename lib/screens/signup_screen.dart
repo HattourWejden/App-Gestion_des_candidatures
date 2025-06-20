@@ -28,12 +28,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(authServiceProvider).registerWithEmailAndPassword(
-
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _nameController.text.trim(),
-      );
+      await ref
+          .read(authServiceProvider)
+          .registerWithEmailAndPassword(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+            _nameController.text.trim(),
+          );
 
       if (mounted) {
         Navigator.pushReplacementNamed(context, AppRoutes.home);
@@ -257,6 +258,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+          Positioned(
+            bottom: 16.0,
+            right: 16.0,
+            child: Image.asset(
+              'images/jglogo-removebg-preview.png',
+              height: 100,
+              width: 100,
             ),
           ),
         ],
