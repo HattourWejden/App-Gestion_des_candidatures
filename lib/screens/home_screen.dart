@@ -8,7 +8,6 @@ import '../constants/app_routes.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
-
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -32,15 +31,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return StreamBuilder<User?>(
       stream: authService.user,
       builder: (context, snapshot) {
-        print('User: ${snapshot.data?.uid}'); // Debug
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data == null) {
           Future.delayed(Duration.zero, () {
-            Navigator.pushReplacementNamed(context, AppRoutes.login);
+            Navigator.pushReplacementNamed(context, AppRoutes.welcome);
           });
-          return const Center(child: Text('Utilisateur non connecté'));
+          return const SizedBox.shrink(); // Return an empty widget while redirecting
         }
 
         final user = snapshot.data!;
