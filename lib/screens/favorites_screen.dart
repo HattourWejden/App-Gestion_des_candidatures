@@ -1,11 +1,9 @@
 import 'package:candid_app/providers.dart';
-import 'package:candid_app/screens/home_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../constants/app_routes.dart';
 import '../constants/colors.dart';
-import '../models/job.dart';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
@@ -27,7 +25,9 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
+            body: Center(
+              child: CircularProgressIndicator(color: AppColors.primaryBlue),
+            ),
           );
         }
         if (!snapshot.hasData || snapshot.data == null) {
@@ -63,10 +63,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                 return const Center(
                   child: Text(
                     'Aucune offre favorite',
-                    style: TextStyle(
-                      color: AppColors.darkGrey,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
                   ),
                 );
               }
@@ -78,15 +75,17 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                   return Card(
                     elevation: 2,
                     margin: const EdgeInsets.only(bottom: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     child: ListTile(
                       contentPadding: const EdgeInsets.all(16),
                       title: Text(
                         job.title,
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.black,
-                            ),
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.black,
+                        ),
                       ),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -95,28 +94,24 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                             job.description,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppColors.darkGrey,
-                                ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(color: AppColors.darkGrey),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             'Statut: ${job.status}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.darkGrey,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.darkGrey),
                           ),
                           Text(
                             'Département: ${job.department}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.darkGrey,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.darkGrey),
                           ),
                           Text(
                             'Candidatures: ${job.applicationCount}',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.darkGrey,
-                                ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: AppColors.darkGrey),
                           ),
                         ],
                       ),
@@ -127,12 +122,19 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         ),
                         onPressed: () async {
                           try {
-                            await DatabaseService().toggleFavorite(user.uid, job.id, false);
+                            await DatabaseService().toggleFavorite(
+                              user.uid,
+                              job.id,
+                              false,
+                            );
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Retiré des favoris')),
+                              const SnackBar(
+                                content: Text('Retiré des favoris'),
+                              ),
                             );
                           } on FirebaseException catch (e) {
-                            String errorMessage = 'Erreur lors de la mise à jour des favoris';
+                            String errorMessage =
+                                'Erreur lors de la mise à jour des favoris';
                             if (e.code == 'unavailable') {
                               errorMessage = 'Vérifiez votre connexion réseau';
                             }
@@ -147,22 +149,32 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         },
                       ),
                       onTap: () {
-                        Navigator.pushNamed(context, AppRoutes.jobDetail, arguments: job);
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.jobDetail,
+                          arguments: job,
+                        );
                       },
                     ),
                   );
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue)),
-            error: (error, _) => Center(
-              child: Text(
-                'Erreur lors du chargement des favoris: $error',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.darkGrey,
-                    ),
-              ),
-            ),
+            loading:
+                () => const Center(
+                  child: CircularProgressIndicator(
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+            error:
+                (error, _) => Center(
+                  child: Text(
+                    'Erreur lors du chargement des favoris: $error',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: AppColors.darkGrey),
+                  ),
+                ),
           ),
           bottomNavigationBar: BottomNavigationBar(
             selectedItemColor: AppColors.primaryBlue,
@@ -177,9 +189,15 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
               }
             },
             items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Accueil'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard),
+                label: 'Accueil',
+              ),
               BottomNavigationBarItem(icon: Icon(Icons.star), label: 'Favoris'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profil',
+              ),
             ],
           ),
         );
