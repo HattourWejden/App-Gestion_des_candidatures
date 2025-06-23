@@ -18,7 +18,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool rememberMe = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _rememberMeError; // To store checkbox error message
+  String? _rememberMeError; 
 
   final _formKey = GlobalKey<FormState>();
 
