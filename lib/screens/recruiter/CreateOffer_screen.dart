@@ -6,6 +6,7 @@ import '../../constants/colors.dart';
 import '../../models/job_offer.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
+import '../../providers.dart';
 
 class CreateOfferScreen extends ConsumerStatefulWidget {
   const CreateOfferScreen({super.key});
@@ -28,7 +29,6 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
   @override
   void initState() {
     super.initState();
-    // Check role
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = ref.read(authServiceProvider);
       authState.whenData((user) async {
@@ -36,6 +36,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
           final role = await ref
               .read(authServiceProvider.notifier)
               .getUserRole(user.uid);
+          print('User role: $role'); // Debug log
           if (role != 'recruiter') {
             Navigator.pushReplacementNamed(context, AppRoutes.welcome);
             ScaffoldMessenger.of(context).showSnackBar(
@@ -57,6 +58,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw Exception('Utilisateur non connecté');
+      print('User UID: ${user.uid}'); // Debug log
 
       final job = JobOffer(
         id: '',
@@ -71,8 +73,10 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
         applicationCount: 0,
         createdAt: DateTime.now(),
       );
+      print('Job Data: ${job.toFirestore()}'); // Debug log
 
       await ref.read(firestoreServiceProvider).addJob(job);
+      ref.invalidate(offersProvider(user.uid)); // Force refresh
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +85,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
         Navigator.pop(context);
       }
     } on FirebaseException catch (e) {
+      print('Firebase Error: ${e.code}, ${e.message}'); // Debug log
       if (mounted) {
         String errorMessage = 'Erreur lors de la création de l\'offre';
         if (e.code == 'permission-denied') {
@@ -93,6 +98,7 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
         ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
     } catch (e) {
+      print('Unexpected Error: $e'); // Debug log
       if (mounted) {
         ScaffoldMessenger.of(
           context,
@@ -200,33 +206,12 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                             ? 'Veuillez entrer une localisation'
                             : null,
               ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: _contractTypeController,
-                decoration: InputDecoration(
-                  hintText: 'Type de contrat (ex. CDI, CDD)',
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.darkGrey),
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.contrast,
-                    color: AppColors.primaryBlue,
-                  ),
-                ),
-                validator:
-                    (value) =>
-                        value == null || value.trim().isEmpty
-                            ? 'Veuillez entrer un type de contrat'
-                            : null,
-              ),
+
               const SizedBox(height: 12),
               TextFormField(
                 controller: _salaryController,
                 decoration: InputDecoration(
-                  hintText: 'Salaire (ex. 30000€/an)',
+                  hintText: 'Salaire (ex. 30000 dt/ans)',
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(

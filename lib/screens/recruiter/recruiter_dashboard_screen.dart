@@ -25,7 +25,9 @@ class RecruiterDashboardScreen extends ConsumerWidget {
           future: ref.read(authServiceProvider.notifier).getUserRole(user.uid),
           builder: (context, roleSnapshot) {
             if (roleSnapshot.connectionState == ConnectionState.waiting) {
-              return const Scaffold(body: Center(child: CircularProgressIndicator()));
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
             }
             if (roleSnapshot.data != 'recruiter') {
               WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,21 +41,32 @@ class RecruiterDashboardScreen extends ConsumerWidget {
               backgroundColor: AppColors.lightGrey,
               appBar: AppBar(
                 backgroundColor: AppColors.primaryBlue,
-                title: const Text('Tableau de bord - Recruteur', style: TextStyle(color: Colors.white)),
+                title: const Text(
+                  'Tableau de bord - Recruteur',
+                  style: TextStyle(color: Colors.white),
+                ),
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.person, color: Colors.white),
-                    onPressed: () => Navigator.pushNamed(context, AppRoutes.profile),
+                    onPressed:
+                        () => Navigator.pushNamed(context, AppRoutes.profile),
                   ),
                 ],
               ),
               body: offersAsync.when(
                 data: (offers) {
+                  print('Offers fetched: ${offers.length}'); // Debug log
+                  offers.forEach(
+                    (offer) => print('Offer: ${offer.toFirestore()}'),
+                  ); // Debug log
                   if (offers.isEmpty) {
                     return const Center(
                       child: Text(
                         'Aucune offre publiée',
-                        style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
+                        style: TextStyle(
+                          color: AppColors.darkGrey,
+                          fontSize: 16,
+                        ),
                       ),
                     );
                   }
@@ -65,28 +78,38 @@ class RecruiterDashboardScreen extends ConsumerWidget {
                       return JobOfferCard(
                         offer: offer,
                         role: 'recruiter',
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          AppRoutes.jobDetail,
-                          arguments: {'role': 'recruiter', 'offerId': offer.id},
-                        ),
+                        onTap:
+                            () => Navigator.pushNamed(
+                              context,
+                              AppRoutes.jobDetail,
+                              arguments: {
+                                'role': 'recruiter',
+                                'offerId': offer.id,
+                              },
+                            ),
                       );
                     },
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Center(child: Text('Erreur: $error')),
+                error: (error, _) {
+                  print('Offers error: $error'); // Debug log
+                  return Center(child: Text('Erreur: $error'));
+                },
               ),
               floatingActionButton: FloatingActionButton(
                 backgroundColor: AppColors.primaryBlue,
-                onPressed: () => Navigator.pushNamed(context, AppRoutes.createoffer),
+                onPressed:
+                    () => Navigator.pushNamed(context, AppRoutes.createoffer),
                 child: const Icon(Icons.add, color: Colors.white),
               ),
             );
           },
         );
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading:
+          () =>
+              const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Erreur: $e'))),
     );
   }

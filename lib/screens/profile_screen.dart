@@ -255,7 +255,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                         _buildProfileItem(
                           icon: Icons.star,
-                          title: 'Offres favorites',
+                          title: 'Candidatures favorites',
                           onTap: () {
                             Navigator.pushNamed(
                               context,

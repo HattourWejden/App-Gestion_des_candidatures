@@ -10,21 +10,39 @@ class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
-  // Add a job offer
   Future<void> addJob(JobOffer job) async {
-    await _firestore.collection('job_offers').add(job.toFirestore());
+    try {
+      await FirebaseFirestore.instance
+          .collection('jobs')
+          .add(job.toFirestore());
+    } catch (e) {
+      print('Erreur lors de l\'ajout de l\'offre: $e');
+      rethrow;
+    }
   }
 
-  // Update job status
   Future<void> updateJobStatus(String jobId, String status) async {
-    await _firestore.collection('job_offers').doc(jobId).update({
-      'status': status,
-    });
+    try {
+      print(
+        'Mise à jour du statut pour jobId: $jobId, statut: $status',
+      ); // Debug log
+      await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
+        'status': status,
+      });
+    } catch (e) {
+      print('Erreur dans updateJobStatus: $e'); // Debug log
+      rethrow;
+    }
   }
 
-  // Delete a job offer
   Future<void> deleteJob(String jobId) async {
-    await _firestore.collection('job_offers').doc(jobId).delete();
+    try {
+      print('Suppression de jobId: $jobId'); // Debug log
+      await FirebaseFirestore.instance.collection('jobs').doc(jobId).delete();
+    } catch (e) {
+      print('Erreur dans deleteJob: $e'); // Debug log
+      rethrow;
+    }
   }
 
   // Get job offers for a recruiter
@@ -217,6 +235,21 @@ class FirestoreService {
     await _firestore.collection('job_offers').doc(offerId).update({
       'applicationCount': FieldValue.increment(1),
     });
+  }
+
+  Future<String> getUserRole(String uid) async {
+    try {
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['role'] ??
+            'candidate'; // Par défaut, rôle 'candidate'
+      }
+      throw Exception('Utilisateur non trouvé');
+    } catch (e) {
+      print('Erreur lors de la récupération du rôle: $e');
+      rethrow;
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/job_offer.dart';
 import '../models/application.dart';
@@ -8,8 +9,16 @@ final offersProvider = StreamProvider.family<List<JobOffer>, String>((
   ref,
   recruiterId,
 ) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getJobOffers(recruiterId);
+  return FirebaseFirestore.instance
+      .collection('jobs')
+      .where('recruiterId', isEqualTo: recruiterId)
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs
+                .map((doc) => JobOffer.fromFirestore(doc.data(), doc.id))
+                .toList(),
+      );
 });
 
 final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
@@ -18,8 +27,16 @@ final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
 });
 
 final jobOfferProvider = StreamProvider.family<JobOffer?, String>((ref, jobId) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getJobOffer(jobId);
+  return FirebaseFirestore.instance
+      .collection('jobs')
+      .doc(jobId)
+      .snapshots()
+      .map((snapshot) {
+        if (snapshot.exists) {
+          return JobOffer.fromFirestore(snapshot.data()!, snapshot.id);
+        }
+        return null;
+      });
 });
 
 final applicationsProvider = StreamProvider.family<List<Application>, String>((
