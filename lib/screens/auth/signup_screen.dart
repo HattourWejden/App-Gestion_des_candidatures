@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../constants/app_routes.dart';
-import '../constants/colors.dart';
-import '../services/auth_service.dart';
+import '../../constants/app_routes.dart';
+import '../../constants/colors.dart';
+import '../../services/auth_service.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -16,7 +16,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _selectedRole;
@@ -27,23 +26,32 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref
-          .read(authServiceProvider)
-          .registerWithEmailAndPassword(
-            _emailController.text.trim(),
-            _passwordController.text.trim(),
-            _nameController.text.trim(),
-            _selectedRole!,
-          );
+      final user = await ref.read(authServiceProvider.notifier).registerWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _nameController.text.trim(),
+        _selectedRole!,
+      );
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      if (mounted && user != null) {
+        final role = await ref.read(authServiceProvider.notifier).getUserRole(user.uid);
+        if (role != null) {
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.home,
+            arguments: {'role': role},
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur: Rôle non défini')),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: ${e.toString()}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -65,19 +73,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.lightGrey,
-      resizeToAvoidBottomInset: false, // Prevent resizing when keyboard appears
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // Scrollable form content
           SingleChildScrollView(
             child: SafeArea(
               child: Padding(
-                padding: EdgeInsets.only(
-                  top: paddingTop,
-                  left: 24.0,
-                  right: 24.0,
-                  bottom: 120.0,
-                ), // Extra bottom padding for logo
+                padding: EdgeInsets.only(top: paddingTop, left: 24.0, right: 24.0, bottom: 120.0),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -85,17 +87,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     children: [
                       const Text(
                         "Créer un compte",
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.black,
-                        ),
+                        style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.black),
                       ),
                       const SizedBox(height: 8),
-                      const Text(
-                        "Inscrivez-vous pour continuer",
-                        style: TextStyle(color: AppColors.darkGrey),
-                      ),
+                      const Text("Inscrivez-vous pour continuer", style: TextStyle(color: AppColors.darkGrey)),
                       const SizedBox(height: 32),
                       TextFormField(
                         controller: _nameController,
@@ -105,20 +100,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: AppColors.darkGrey,
-                            ),
+                            borderSide: const BorderSide(color: AppColors.darkGrey),
                           ),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: AppColors.primaryBlue,
-                          ),
+                          prefixIcon: const Icon(Icons.person, color: AppColors.primaryBlue),
                         ),
-                        validator:
-                            (value) =>
-                                value == null || value.trim().isEmpty
-                                    ? 'Veuillez entrer votre nom'
-                                    : null,
+                        validator: (value) => value == null || value.trim().isEmpty ? 'Veuillez entrer votre nom' : null,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
@@ -129,23 +115,16 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: AppColors.darkGrey,
-                            ),
+                            borderSide: const BorderSide(color: AppColors.darkGrey),
                           ),
-                          prefixIcon: const Icon(
-                            Icons.email,
-                            color: AppColors.primaryBlue,
-                          ),
+                          prefixIcon: const Icon(Icons.email, color: AppColors.primaryBlue),
                         ),
                         keyboardType: TextInputType.emailAddress,
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Veuillez entrer votre email';
                           }
-                          if (!RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                          ).hasMatch(value)) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                             return 'Veuillez entrer un email valide';
                           }
                           return null;
@@ -161,19 +140,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: AppColors.darkGrey,
-                            ),
+                            borderSide: const BorderSide(color: AppColors.darkGrey),
                           ),
-                          prefixIcon: const Icon(
-                            Icons.lock,
-                            color: AppColors.primaryBlue,
-                          ),
+                          prefixIcon: const Icon(Icons.lock, color: AppColors.primaryBlue),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
+                              _obscurePassword ? Icons.visibility : Icons.visibility_off,
                               color: AppColors.primaryBlue,
                             ),
                             onPressed: () {
@@ -202,36 +174,21 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(
-                              color: AppColors.darkGrey,
-                            ),
+                            borderSide: const BorderSide(color: AppColors.darkGrey),
                           ),
-                          prefixIcon: const Icon(
-                            Icons.work,
-                            color: AppColors.primaryBlue,
-                          ),
+                          prefixIcon: const Icon(Icons.work, color: AppColors.primaryBlue),
                         ),
                         hint: const Text('Sélectionner un rôle'),
                         items: const [
-                          DropdownMenuItem(
-                            value: 'recruiter',
-                            child: Text('Recruteur'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'candidate',
-                            child: Text('Candidat'),
-                          ),
+                          DropdownMenuItem(value: 'recruiter', child: Text('Recruteur')),
+                          DropdownMenuItem(value: 'candidate', child: Text('Candidat')),
                         ],
                         onChanged: (value) {
                           setState(() {
                             _selectedRole = value;
                           });
                         },
-                        validator:
-                            (value) =>
-                                value == null
-                                    ? 'Veuillez sélectionner un rôle'
-                                    : null,
+                        validator: (value) => value == null ? 'Veuillez sélectionner un rôle' : null,
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -240,19 +197,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           minimumSize: const Size.fromHeight(50),
                           backgroundColor: AppColors.primaryBlue,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        child:
-                            _isLoading
-                                ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                                : const Text(
-                                  "S'inscrire",
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
+                        child: _isLoading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Text("S'inscrire", style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 16),
                       Row(
@@ -260,17 +209,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         children: [
                           const Text("Déjà un compte ? "),
                           GestureDetector(
-                            onTap:
-                                () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.login,
-                                ),
+                            onTap: () => Navigator.pushNamed(context, AppRoutes.login),
                             child: const Text(
                               "Se connecter",
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryBlue,
-                              ),
+                              style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
                             ),
                           ),
                         ],
@@ -281,7 +223,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               ),
             ),
           ),
-          // Fixed logo
           Positioned(
             bottom: 16.0,
             right: 16.0,

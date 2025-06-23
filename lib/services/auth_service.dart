@@ -1,81 +1,71 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/user.dart';
 
-import 'package:candid_app/providers.dart';
-
-class AuthService {
+class AuthService extends StateNotifier<AsyncValue<User?>> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final Ref _ref;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  AuthService(this._ref);
+  AuthService() : super(const AsyncValue.loading()) {
+    _auth.authStateChanges().listen((user) {
+      state = AsyncValue.data(user);
+    });
+  }
 
-  Stream<User?> get user => _auth.authStateChanges();
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  Future<void> registerWithEmailAndPassword(
+  Future<User?> registerWithEmailAndPassword(
     String email,
     String password,
     String name,
     String role,
   ) async {
-    final userCredential = await FirebaseAuth.instance
-        .createUserWithEmailAndPassword(email: email, password: password);
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userCredential.user!.uid)
-        .set({
-          'name': name,
-          'email': email,
-          'role': role,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-  }
-
-  Future<String?> getCurrentUserRole() async {
-    final user = _auth.currentUser;
+    final result = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    final user = result.user;
     if (user != null) {
-      final doc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-      return doc.data()?['role'] as String?;
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'email': email,
+        'name': name,
+        'role': role,
+      });
     }
-    return null;
+    return user;
   }
 
-  Future<void> signInWithEmailAndPassword(String email, String password) async {
-    try {
-      final credential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final user = credential.user;
-      if (user != null) {
-        final userDoc =
-            await FirebaseFirestore.instance
-                .collection('users')
-                .doc(user.uid)
-                .get();
-
-        if (!userDoc.exists || userDoc.data()?['role'] != 'recruiter') {
-          await _ref.read(databaseServiceProvider).updateUserProfile(user.uid, {
-            'name': userDoc.data()?['name'] ?? 'Recruiter',
-            'email': email,
-            'role': 'recruiter',
-            'createdAt':
-                userDoc.data()?['createdAt'] ?? FieldValue.serverTimestamp(),
-          });
-        }
-      }
-    } catch (e) {
-      throw Exception('Erreur lors de la connexion : $e');
-    }
+  Future<User?> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
+    final result = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    return result.user;
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    try {
+      await _auth.signOut();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<String?> getUserRole(String uid) async {
+    try {
+      final doc = await _firestore.collection('users').doc(uid).get();
+      return doc.data()?['role'] as String?;
+    } catch (e) {
+      rethrow;
+    }
   }
 }
 
-final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref));
+final authServiceProvider =
+    StateNotifierProvider<AuthService, AsyncValue<User?>>((ref) {
+      return AuthService();
+    });

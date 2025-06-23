@@ -1,5 +1,5 @@
 
-import 'package:candid_app/screens/welcome_screen.dart';
+import 'package:candid_app/screens/auth/welcome_screen.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 

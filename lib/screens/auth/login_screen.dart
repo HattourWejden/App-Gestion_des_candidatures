@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import '../constants/app_routes.dart';
-import '../constants/colors.dart';
-import '../services/auth_service.dart';
+import '../../constants/app_routes.dart';
+import '../../constants/colors.dart';
+import '../../services/auth_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,22 +15,20 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool rememberMe = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _rememberMeError; 
+  bool _rememberMe = false;
+  String? _rememberMeError;
 
   final _formKey = GlobalKey<FormState>();
 
   Future<void> _onSignInPressed() async {
-    // Reset error message
     setState(() {
       _rememberMeError = null;
     });
 
-    // Validate form fields and checkbox
-    if (!_formKey.currentState!.validate() || !rememberMe) {
-      if (!rememberMe) {
+    if (!_formKey.currentState!.validate() || !_rememberMe) {
+      if (!_rememberMe) {
         setState(() {
           _rememberMeError = 'Veuillez cocher "Se souvenir de moi"';
         });
@@ -41,15 +39,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await ref
-          .read(authServiceProvider)
-          .signInWithEmailAndPassword(
-            _emailController.text.trim(),
-            _passwordController.text.trim(),
-          );
+      final user = await ref.read(authServiceProvider.notifier).signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
+      if (mounted && user != null) {
+        final role = await ref.read(authServiceProvider.notifier).getUserRole(user.uid);
+        if (role != null) {
+          Navigator.pushReplacementNamed(
+            context,
+            AppRoutes.home,
+            arguments: {'role': role},
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Erreur: Rôle non défini')),
+          );
+        }
       }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -68,14 +75,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         default:
           errorMessage = 'Erreur de connexion: ${e.message}';
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Erreur inattendue: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur inattendue: $e')),
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -138,9 +145,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Veuillez entrer votre email';
                       }
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                      ).hasMatch(value)) {
+                      if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
                         return 'Veuillez entrer un email valide';
                       }
                       return null;
@@ -164,9 +169,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                          _obscurePassword ? Icons.visibility : Icons.visibility_off,
                           color: AppColors.primaryBlue,
                         ),
                         onPressed: () {
@@ -196,30 +199,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Row(
                             children: [
                               Checkbox(
-                                value: rememberMe,
+                                value: _rememberMe,
                                 onChanged: (value) {
                                   setState(() {
-                                    rememberMe = value ?? false;
-                                    _rememberMeError =
-                                        null; // Clear error when checkbox is toggled
+                                    _rememberMe = value ?? false;
+                                    _rememberMeError = null;
                                   });
                                 },
                                 activeColor: AppColors.primaryBlue,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(4),
-                                  side:
-                                      _rememberMeError != null
-                                          ? const BorderSide(
-                                            color: Color.fromARGB(
-                                              255,
-                                              194,
-                                              53,
-                                              43,
-                                            ),
-                                          )
-                                          : const BorderSide(
-                                            color: Colors.transparent,
-                                          ), // Default to transparent
+                                  side: _rememberMeError != null
+                                      ? const BorderSide(color: Color.fromARGB(255, 194, 53, 43))
+                                      : const BorderSide(color: Colors.transparent),
                                 ),
                                 semanticLabel: 'Se souvenir de moi',
                               ),
@@ -229,10 +221,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           Flexible(
                             child: TextButton(
                               onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.forgotPassword,
-                                );
+                                Navigator.pushNamed(context, AppRoutes.forgotPassword);
                               },
                               child: const Text(
                                 "Mot de passe oublié ?",
@@ -248,10 +237,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           padding: const EdgeInsets.only(left: 16.0, top: 4.0),
                           child: Text(
                             _rememberMeError!,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
+                            style: const TextStyle(color: Colors.red, fontSize: 12),
                           ),
                         ),
                     ],
@@ -267,15 +253,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    child:
-                        _isLoading
-                            ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
-                            : const Text(
-                              "Se connecter",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text("Se connecter", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -283,15 +263,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const Text("Pas de compte ? "),
                       GestureDetector(
-                        onTap:
-                            () =>
-                                Navigator.pushNamed(context, AppRoutes.signup),
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.signup),
                         child: const Text(
                           "S'inscrire",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primaryBlue,
-                          ),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryBlue),
                         ),
                       ),
                     ],

@@ -1,6 +1,6 @@
 import 'package:candid_app/constants/app_routes.dart';
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
+import '../../constants/colors.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});

@@ -1,24 +1,53 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../constants/app_routes.dart';
+import '../../constants/colors.dart';
+import '../../models/job_offer.dart';
+import '../../services/auth_service.dart';
+import '../../services/firestore_service.dart';
 
-import '../constants/colors.dart';
-import '../services/database_service.dart';
-import '../models/job.dart';
-
-class CreateOfferScreen extends StatefulWidget {
+class CreateOfferScreen extends ConsumerStatefulWidget {
   const CreateOfferScreen({super.key});
 
   @override
-  State<CreateOfferScreen> createState() => _CreateOfferScreenState();
+  ConsumerState<CreateOfferScreen> createState() => _CreateOfferScreenState();
 }
 
-class _CreateOfferScreenState extends State<CreateOfferScreen> {
+class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  String _status = 'open'; // Default value
-  String _department = 'Non spécifié'; // Default value
+  final _locationController = TextEditingController();
+  final _contractTypeController = TextEditingController();
+  final _salaryController = TextEditingController();
+  String _status = 'open';
+  String _department = 'Non spécifié';
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check role
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authState = ref.read(authServiceProvider);
+      authState.whenData((user) async {
+        if (user != null) {
+          final role = await ref
+              .read(authServiceProvider.notifier)
+              .getUserRole(user.uid);
+          if (role != 'recruiter') {
+            Navigator.pushReplacementNamed(context, AppRoutes.welcome);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Accès réservé aux recruteurs')),
+            );
+          }
+        } else {
+          Navigator.pushReplacementNamed(context, AppRoutes.login);
+        }
+      });
+    });
+  }
 
   Future<void> _onSavePressed() async {
     if (!_formKey.currentState!.validate()) return;
@@ -26,27 +55,30 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final job = Job(
-        id: '', // Firestore generates ID
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception('Utilisateur non connecté');
+
+      final job = JobOffer(
+        id: '',
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
+        location: _locationController.text.trim(),
+        contractType: _contractTypeController.text.trim(),
+        salary: _salaryController.text.trim(),
         status: _status,
         department: _department,
+        recruiterId: user.uid,
         applicationCount: 0,
-      
+        createdAt: DateTime.now(),
       );
 
-      await DatabaseService().addJob(job);
+      await ref.read(firestoreServiceProvider).addJob(job);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Offre créée avec succès')),
         );
-        // Invalidate providers to refresh HomeScreen
-        final navigator = Navigator.of(context);
-        navigator.pop(); // Return to HomeScreen
-        // Optional: Use a global key or provider to force refresh
-        // For now, rely on stream updates
+        Navigator.pop(context);
       }
     } on FirebaseException catch (e) {
       if (mounted) {
@@ -75,6 +107,9 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
+    _locationController.dispose();
+    _contractTypeController.dispose();
+    _salaryController.dispose();
     super.dispose();
   }
 
@@ -114,12 +149,11 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                     color: AppColors.primaryBlue,
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Veuillez entrer un titre';
-                  }
-                  return null;
-                },
+                validator:
+                    (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Veuillez entrer un titre'
+                            : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -138,12 +172,77 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
                   ),
                 ),
                 maxLines: 5,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Veuillez entrer une description';
-                  }
-                  return null;
-                },
+                validator:
+                    (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Veuillez entrer une description'
+                            : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _locationController,
+                decoration: InputDecoration(
+                  hintText: 'Localisation',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.darkGrey),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.location_on,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Veuillez entrer une localisation'
+                            : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _contractTypeController,
+                decoration: InputDecoration(
+                  hintText: 'Type de contrat (ex. CDI, CDD)',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.darkGrey),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.contrast,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Veuillez entrer un type de contrat'
+                            : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _salaryController,
+                decoration: InputDecoration(
+                  hintText: 'Salaire (ex. 30000€/an)',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.darkGrey),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.money,
+                    color: AppColors.primaryBlue,
+                  ),
+                ),
+                validator:
+                    (value) =>
+                        value == null || value.trim().isEmpty
+                            ? 'Veuillez entrer un salaire'
+                            : null,
               ),
               const SizedBox(height: 12),
               Container(
@@ -213,9 +312,12 @@ class _CreateOfferScreenState extends State<CreateOfferScreen> {
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: _isLoading ? null : _onSavePressed,
-                style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
-                  minimumSize: WidgetStateProperty.all(
-                    const Size.fromHeight(50),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  backgroundColor: AppColors.primaryBlue,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 child:
