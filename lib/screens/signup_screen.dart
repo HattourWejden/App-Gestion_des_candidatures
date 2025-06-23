@@ -21,7 +21,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-
+  String _selectedRole = 'recruiter';
   Future<void> _onSignupPressed() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -34,6 +34,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             _emailController.text.trim(),
             _passwordController.text.trim(),
             _nameController.text.trim(),
+            _selectedRole,
           );
 
       if (mounted) {

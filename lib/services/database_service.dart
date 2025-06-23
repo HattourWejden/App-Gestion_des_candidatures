@@ -1,3 +1,4 @@
+import 'package:candid_app/models/application.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/job.dart';
@@ -75,8 +76,7 @@ class DatabaseService {
 
   Future<void> deleteJob(String jobId) async {
     try {
-      await _firestore.collection('jobs').doc(jobId).delete();
-      // Note: Consider cleaning up applications sub-collection and userFavorites if needed
+      await FirebaseFirestore.instance.collection('jobs').doc(jobId).delete();
     } catch (e) {
       throw Exception('Erreur lors de la suppression de l\'offre: $e');
     }
@@ -112,6 +112,20 @@ class DatabaseService {
       }
     } catch (e) {
       throw Exception('Erreur lors de la mise à jour des favoris: $e');
+    }
+  }
+
+  Future<void> updateApplicationStatus(
+    String applicationId,
+    String status,
+  ) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('applications')
+          .doc(applicationId)
+          .update({'status': status});
+    } catch (e) {
+      throw Exception('Erreur lors de la mise à jour du statut: $e');
     }
   }
 

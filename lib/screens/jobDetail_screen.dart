@@ -1,6 +1,5 @@
-
 import 'package:candid_app/providers.dart';
-
+import 'package:candid_app/screens/home_screen.dart';
 import 'package:candid_app/services/auth_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,10 +44,7 @@ class JobDetailScreen extends ConsumerWidget {
           backgroundColor: AppColors.lightGrey,
           appBar: AppBar(
             backgroundColor: AppColors.primaryBlue,
-            title: Text(
-              job.title,
-              style: const TextStyle(color: Colors.white),
-            ),
+            title: Text(job.title, style: const TextStyle(color: Colors.white)),
             actions: [
               Consumer(
                 builder: (context, ref, _) {
@@ -71,7 +67,9 @@ class JobDetailScreen extends ConsumerWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  isFavorite ? 'Retiré des favoris' : 'Ajouté aux favoris',
+                                  isFavorite
+                                      ? 'Retiré des favoris'
+                                      : 'Ajouté aux favoris',
                                 ),
                               ),
                             );
@@ -83,8 +81,12 @@ class JobDetailScreen extends ConsumerWidget {
                         },
                       );
                     },
-                    loading: () => const CircularProgressIndicator(color: Colors.white),
-                    error: (_, __) => const Icon(Icons.error, color: Colors.white),
+                    loading:
+                        () => const CircularProgressIndicator(
+                          color: Colors.white,
+                        ),
+                    error:
+                        (_, __) => const Icon(Icons.error, color: Colors.white),
                   );
                 },
               ),
@@ -96,7 +98,9 @@ class JobDetailScreen extends ConsumerWidget {
               children: [
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -104,55 +108,60 @@ class JobDetailScreen extends ConsumerWidget {
                       children: [
                         Text(
                           job.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.black,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Département: ${job.department}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.darkGrey,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.darkGrey),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Statut: ${job.status}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: job.status == 'open' ? AppColors.primaryGreen : AppColors.darkGrey,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(
+                            color:
+                                job.status == 'open'
+                                    ? AppColors.primaryGreen
+                                    : AppColors.darkGrey,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Candidatures: ${job.applicationCount}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.darkGrey,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.darkGrey),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'Publié le: ${job.postedDate != null ? DateFormat('dd/MM/yyyy').format(job.postedDate!) : 'Inconnu'}',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.darkGrey,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.darkGrey),
                         ),
                         const SizedBox(height: 16),
                         const Divider(color: AppColors.lightGrey),
                         const SizedBox(height: 16),
                         Text(
                           'Description',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.black,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Text(
                           job.description,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppColors.darkGrey,
-                              ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: AppColors.darkGrey),
                         ),
                       ],
                     ),
@@ -161,7 +170,9 @@ class JobDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -169,10 +180,12 @@ class JobDetailScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Gestion de l\'offre',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.black,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -185,23 +198,43 @@ class JobDetailScreen extends ConsumerWidget {
                                   fillColor: Colors.white,
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(8),
-                                    borderSide: const BorderSide(color: AppColors.darkGrey),
+                                    borderSide: const BorderSide(
+                                      color: AppColors.darkGrey,
+                                    ),
                                   ),
                                 ),
                                 items: const [
-                                  DropdownMenuItem(value: 'open', child: Text('Ouverte')),
-                                  DropdownMenuItem(value: 'in_progress', child: Text('En cours')),
-                                  DropdownMenuItem(value: 'closed', child: Text('Fermée')),
+                                  DropdownMenuItem(
+                                    value: 'open',
+                                    child: Text('Ouverte'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'in_progress',
+                                    child: Text('En cours'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'closed',
+                                    child: Text('Fermée'),
+                                  ),
                                 ],
                                 onChanged: (value) async {
                                   if (value != null && value != job.status) {
                                     try {
-                                      await DatabaseService().updateJobStatus(job.id, value);
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Statut mis à jour')),
+                                      await DatabaseService().updateJobStatus(
+                                        job.id,
+                                        value,
+                                      );
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Statut mis à jour'),
+                                        ),
                                       );
                                     } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(content: Text('Erreur: $e')),
                                       );
                                     }
@@ -214,27 +247,49 @@ class JobDetailScreen extends ConsumerWidget {
                               onPressed: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Confirmer la suppression'),
-                                    content: const Text('Voulez-vous supprimer cette offre ?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, false),
-                                        child: const Text('Annuler'),
+                                  builder:
+                                      (context) => AlertDialog(
+                                        title: const Text(
+                                          'Confirmer la suppression',
+                                        ),
+                                        content: const Text(
+                                          'Voulez-vous supprimer cette offre ?',
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  false,
+                                                ),
+                                            child: const Text('Annuler'),
+                                          ),
+                                          TextButton(
+                                            onPressed:
+                                                () => Navigator.pop(
+                                                  context,
+                                                  true,
+                                                ),
+                                            child: const Text(
+                                              'Supprimer',
+                                              style: TextStyle(
+                                                color: Colors.red,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context, true),
-                                        child: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                                      ),
-                                    ],
-                                  ),
                                 );
                                 if (confirm == true) {
                                   try {
                                     await DatabaseService().deleteJob(job.id);
-                                    Navigator.pop(context); // Return to HomeScreen
+                                    Navigator.pop(
+                                      context,
+                                    ); // Return to HomeScreen
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Offre supprimée')),
+                                      const SnackBar(
+                                        content: Text('Offre supprimée'),
+                                      ),
                                     );
                                   } catch (e) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -243,10 +298,16 @@ class JobDetailScreen extends ConsumerWidget {
                                   }
                                 }
                               },
-                              style: Theme.of(context).elevatedButtonTheme.style?.copyWith(
-                                    backgroundColor: WidgetStateProperty.all(Colors.red),
-                                    foregroundColor: WidgetStateProperty.all(Colors.white),
-                                  ),
+                              style: Theme.of(
+                                context,
+                              ).elevatedButtonTheme.style?.copyWith(
+                                backgroundColor: WidgetStateProperty.all(
+                                  Colors.red,
+                                ),
+                                foregroundColor: WidgetStateProperty.all(
+                                  Colors.white,
+                                ),
+                              ),
                               child: const Text('Supprimer'),
                             ),
                           ],
@@ -258,7 +319,9 @@ class JobDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Card(
                   elevation: 2,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
@@ -266,10 +329,12 @@ class JobDetailScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Candidatures',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.black,
-                              ),
+                          style: Theme.of(
+                            context,
+                          ).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.black,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         applicationsAsync.when(
@@ -284,42 +349,61 @@ class JobDetailScreen extends ConsumerWidget {
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: applications.length,
-                              separatorBuilder: (_, __) => const Divider(color: AppColors.lightGrey),
+                              separatorBuilder:
+                                  (_, __) =>
+                                      const Divider(color: AppColors.lightGrey),
                               itemBuilder: (context, index) {
                                 final application = applications[index];
                                 return ListTile(
                                   title: Text(
                                     'Candidat: ${application.userId}',
-                                    style: const TextStyle(color: AppColors.black),
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                    ),
                                   ),
                                   subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Statut: ${application.status}',
-                                        style: const TextStyle(color: AppColors.darkGrey),
+                                        style: const TextStyle(
+                                          color: AppColors.darkGrey,
+                                        ),
                                       ),
                                       Text(
                                         'Date: ${application.appliedAt != null ? DateFormat('dd/MM/yyyy').format(application.appliedAt!) : 'Inconnu'}',
-                                        style: const TextStyle(color: AppColors.darkGrey),
+                                        style: const TextStyle(
+                                          color: AppColors.darkGrey,
+                                        ),
                                       ),
                                     ],
                                   ),
                                   // Placeholder for future candidate details navigation
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Détails du candidat à implémenter')),
+                                      const SnackBar(
+                                        content: Text(
+                                          'Détails du candidat à implémenter',
+                                        ),
+                                      ),
                                     );
                                   },
                                 );
                               },
                             );
                           },
-                          loading: () => const Center(child: CircularProgressIndicator()),
-                          error: (e, _) => Text(
-                            'Erreur lors du chargement des candidatures: $e',
-                            style: const TextStyle(color: AppColors.darkGrey),
-                          ),
+                          loading:
+                              () => const Center(
+                                child: CircularProgressIndicator(),
+                              ),
+                          error:
+                              (e, _) => Text(
+                                'Erreur lors du chargement des candidatures: $e',
+                                style: const TextStyle(
+                                  color: AppColors.darkGrey,
+                                ),
+                              ),
                         ),
                       ],
                     ),

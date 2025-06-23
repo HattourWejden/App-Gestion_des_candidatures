@@ -16,6 +16,7 @@ class AuthService {
     String email,
     String password,
     String name,
+    String role, // Ajoutez ce paramètre
   ) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -27,13 +28,26 @@ class AuthService {
         await _ref.read(databaseServiceProvider).updateUserProfile(user.uid, {
           'name': name,
           'email': email,
-          'role': 'recruiter',
+          'role': role,
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
     } catch (e) {
       throw Exception('Erreur lors de l\'inscription : $e');
     }
+  }
+
+  Future<String?> getCurrentUserRole() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+      return doc.data()?['role'] as String?;
+    }
+    return null;
   }
 
   Future<void> signInWithEmailAndPassword(String email, String password) async {
@@ -71,4 +85,3 @@ class AuthService {
 }
 
 final authServiceProvider = Provider<AuthService>((ref) => AuthService(ref));
-
