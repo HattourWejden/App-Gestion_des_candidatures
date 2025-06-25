@@ -16,175 +16,238 @@ class ApplicationDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final applicationId = args?['applicationId'] as String?;
+    final jobId = args?['jobId'] as String?;
     final role = args?['role'] as String? ?? 'recruiter';
 
-    if (applicationId == null) {
+    // Vérification de l'authentification
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      });
+      return const SizedBox.shrink();
+    }
+
+    if (jobId == null) {
       return Scaffold(
         backgroundColor: AppColors.lightGrey,
         appBar: AppBar(
           backgroundColor: AppColors.primaryBlue,
           title: const Text(
-            'Détails de la candidature',
+            'Détails des candidatures',
             style: TextStyle(color: Colors.white),
           ),
         ),
         body: const Center(
           child: Text(
-            'Erreur : ID de candidature manquant',
+            'Erreur : ID de l\'offre manquant',
             style: TextStyle(color: AppColors.darkGrey),
           ),
         ),
       );
     }
 
-    // Fetch the specific application
-    final applicationAsync = ref.watch(applicationProvider(applicationId));
+    // Fetch the job to verify recruiter ownership
+    final jobAsync = ref.watch(jobOfferProvider(jobId));
+    final applicationsAsync = ref.watch(applicationsForJobProvider(jobId));
 
-    return Scaffold(
-      backgroundColor: AppColors.lightGrey,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryBlue,
-        title: const Text(
-          'Détails de la candidature',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: applicationAsync.when(
-        data: (application) {
-          if (application == null) {
-            return const Center(
-              child: Text(
-                'Candidature non trouvée',
-                style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
+    return jobAsync.when(
+      data: (job) {
+        if (job == null ||
+            (role == 'recruiter' && job.recruiterId != user.uid)) {
+          return Scaffold(
+            backgroundColor: AppColors.lightGrey,
+            appBar: AppBar(
+              backgroundColor: AppColors.primaryBlue,
+              title: const Text(
+                'Détails des candidatures',
+                style: TextStyle(color: Colors.white),
               ),
-            );
-          }
-
-          // Check if the application is favorited
-          final isFavorite = ref
-              .watch(
-                favoriteApplicationsProvider(
-                  FirebaseAuth.instance.currentUser!.uid,
-                ),
-              )
-              .when(
-                data:
-                    (applications) =>
-                        applications.any((app) => app.id == application.id),
-                loading: () => false,
-                error: (_, __) => false,
-              );
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Candidat: ${application.candidateId}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: AppColors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Statut: ${application.status}',
-                  style: const TextStyle(color: AppColors.darkGrey),
-                ),
-                Text(
-                  'Date de candidature: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
-                  style: const TextStyle(color: AppColors.darkGrey),
-                ),
-                Text(
-                  'CV: ${application.cvUrl.isNotEmpty ? 'Disponible' : 'Non disponible'}',
-                  style: const TextStyle(color: AppColors.darkGrey),
-                ),
-                if (application.cvUrl.isNotEmpty)
-                  TextButton(
-                    onPressed: () {
-                      // Implement CV viewing logic (e.g., open URL)
-                    },
-                    child: const Text(
-                      'Voir le CV',
-                      style: TextStyle(color: AppColors.primaryBlue),
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    try {
-                      await ref
-                          .read(firestoreServiceProvider)
-                          .toggleFavorite(
-                            FirebaseAuth.instance.currentUser!.uid,
-                            application.id,
-                            isFavorite,
-                            'application',
-                          );
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            isFavorite
-                                ? 'Retiré des favoris'
-                                : 'Ajouté aux favoris',
-                          ),
-                        ),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(
-                        context,
-                      ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-                    }
-                  },
-                  icon:
-                      isFavorite
-                          ? const Icon(Icons.favorite, color: Colors.red)
-                          : const Icon(
-                            Icons.favorite_border,
-                            color: AppColors.darkGrey,
-                          ),
-                  label: Text(
-                    isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
-                    style: const TextStyle(color: AppColors.black),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.lightGrey,
-                    elevation: 0,
-                  ),
-                ),
-              ],
+            ),
+            body: const Center(
+              child: Text(
+                'Accès refusé ou offre non trouvée',
+                style: TextStyle(color: AppColors.darkGrey),
+              ),
             ),
           );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error:
-            (error, _) => Center(
-              child: Text(
-                'Erreur lors du chargement: $error',
-                style: const TextStyle(color: AppColors.darkGrey),
-              ),
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.lightGrey,
+          appBar: AppBar(
+            backgroundColor: AppColors.primaryBlue,
+            title: const Text(
+              'Détails des candidatures',
+              style: TextStyle(color: Colors.white),
             ),
-      ),
+          ),
+          body: applicationsAsync.when(
+            data: (applications) {
+              if (applications.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'Aucune candidature pour cette offre',
+                    style: TextStyle(color: AppColors.darkGrey, fontSize: 16),
+                  ),
+                );
+              }
+
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: ListView.builder(
+                  itemCount: applications.length,
+                  itemBuilder: (context, index) {
+                    final application = applications[index];
+                    final isFavorite = ref
+                        .watch(favoriteApplicationsProvider(user.uid))
+                        .when(
+                          data:
+                              (favApps) => favApps.any(
+                                (app) => app.id == application.id,
+                              ),
+                          loading: () => false,
+                          error: (_, __) => false,
+                        );
+
+                    return Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Candidat: ${application.candidateId}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: AppColors.black,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Statut: ${application.status}',
+                              style: const TextStyle(color: AppColors.darkGrey),
+                            ),
+                            Text(
+                              'Date de candidature: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
+                              style: const TextStyle(color: AppColors.darkGrey),
+                            ),
+                            Text(
+                              'CV: ${application.cvUrl.isNotEmpty ? 'Disponible' : 'Non disponible'}',
+                              style: const TextStyle(color: AppColors.darkGrey),
+                            ),
+                            if (application.cvUrl.isNotEmpty)
+                              TextButton(
+                                onPressed: () {
+                                  // Logique pour ouvrir le CV
+                                },
+                                child: const Text(
+                                  'Voir le CV',
+                                  style: TextStyle(
+                                    color: AppColors.primaryBlue,
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                try {
+                                  await ref
+                                      .read(firestoreServiceProvider)
+                                      .toggleFavorite(
+                                        user.uid,
+                                        application.id,
+                                        !isFavorite,
+                                        'application',
+                                      );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        !isFavorite
+                                            ? 'Ajouté aux favoris'
+                                            : 'Retiré des favoris',
+                                      ),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Erreur: $e')),
+                                  );
+                                }
+                              },
+                              icon:
+                                  isFavorite
+                                      ? const Icon(
+                                        Icons.favorite,
+                                        color: Colors.red,
+                                      )
+                                      : const Icon(
+                                        Icons.favorite_border,
+                                        color: AppColors.darkGrey,
+                                      ),
+                              label: Text(
+                                !isFavorite
+                                    ? 'Ajouter aux favoris'
+                                    : 'Retirer des favoris',
+                                style: const TextStyle(color: AppColors.black),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.lightGrey,
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error:
+                (error, stackTrace) => Center(
+                  child: Text(
+                    'Erreur lors du chargement: $error\nStackTrace: $stackTrace',
+                    style: const TextStyle(color: AppColors.darkGrey),
+                  ),
+                ),
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error:
+          (error, _) => Center(
+            child: Text(
+              'Erreur lors du chargement de l\'offre: $error',
+              style: const TextStyle(color: AppColors.darkGrey),
+            ),
+          ),
     );
   }
 }
 
-// Provider to fetch a single application by ID
-final applicationProvider = StreamProvider.family<Application?, String>((
-  ref,
-  applicationId,
-) {
-  return FirebaseFirestore.instance
-      .collection('applications')
-      .doc(applicationId)
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.exists
-                ? Application.fromFirestore(snapshot.data()!, snapshot.id)
-                : null,
-      );
-});
+// Updated provider to ensure recruiter ownership
+final applicationsForJobProvider =
+    StreamProvider.family<List<Application>, String>((ref, jobId) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const Stream.empty();
+      return FirebaseFirestore.instance
+          .collection('applications')
+          .where('jobId', isEqualTo: jobId)
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.docs
+                    .map(
+                      (doc) => Application.fromFirestore(doc.data()!, doc.id),
+                    )
+                    .toList(),
+          );
+    });

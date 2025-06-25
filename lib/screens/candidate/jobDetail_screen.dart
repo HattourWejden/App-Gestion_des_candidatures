@@ -1,9 +1,12 @@
+import 'package:candid_app/screens/candidate/ApplicationFormDialog.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:file_picker/file_picker.dart';
 import '../../constants/app_routes.dart';
 import '../../constants/colors.dart';
+import '../../models/application.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers.dart';
@@ -22,102 +25,96 @@ class CandidateJobDetailScreen extends ConsumerWidget {
     return authState.when(
       data: (user) {
         if (user == null) {
-          print(
-            'Utilisateur non connecté, redirection vers login',
-          ); // Debug log
+          print('Utilisateur non connecté, redirection vers login');
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pushReplacementNamed(context, AppRoutes.login);
           });
           return const SizedBox.shrink();
         }
-        print('Utilisateur connecté: ${user.uid}'); // Debug log
+        print('Utilisateur connecté: ${user.uid}');
         if (jobId == null) {
-          print('Job ID null, affichage erreur'); // Debug log
+          print('Job ID null, affichage erreur');
           return const Scaffold(
             body: Center(child: Text('Erreur : Offre non trouvée')),
           );
         }
         final jobAsync = ref.watch(jobOfferProvider(jobId));
+        final applicationsAsync = ref.watch(applicationsForJobProvider(jobId));
 
-        return Scaffold(
-          backgroundColor: AppColors.lightGrey,
-          appBar: AppBar(
-            backgroundColor: AppColors.primaryBlue,
-            title: const Text(
-              'Détails de l\'offre',
-              style: TextStyle(color: Colors.white),
-            ),
-            actions: [
-              Consumer(
-                builder: (context, ref, _) {
-                  final favoritesAsync = ref.watch(
-                    favoritesProvider({'userId': user.uid, 'type': 'job'}),
-                  );
-                  return favoritesAsync.when(
-                    data: (favorites) {
-                      final isFavorite = favorites.contains(jobId);
-                      print(
-                        'Favoris chargés, isFavorite: $isFavorite pour jobId: $jobId',
-                      ); // Debug log
-                      return IconButton(
-                        icon: Icon(
-                          isFavorite ? Icons.star : Icons.star_border,
-                          color: Colors.white,
-                        ),
-                        onPressed: () async {
-                          try {
-                            print(
-                              'Toggling favori pour jobId: $jobId',
-                            ); // Debug log
-                            await ref
-                                .read(firestoreServiceProvider)
-                                .toggleFavorite(
-                                  user.uid,
-                                  jobId,
-                                  !isFavorite,
-                                  'job',
+        return jobAsync.when(
+          data: (job) {
+            if (job == null) {
+              print('Offre null pour jobId: $jobId');
+              return const Center(child: Text('Erreur : Offre non trouvée'));
+            }
+            return Scaffold(
+              backgroundColor: AppColors.lightGrey,
+              appBar: AppBar(
+                backgroundColor: AppColors.primaryBlue,
+                title: const Text(
+                  'Détails de l\'offre',
+                  style: TextStyle(color: Colors.white),
+                ),
+                actions: [
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final favoritesAsync = ref.watch(
+                        favoritesProvider({'userId': user.uid, 'type': 'job'}),
+                      );
+                      return favoritesAsync.when(
+                        data: (favorites) {
+                          final isFavorite = favorites.contains(jobId);
+                          print(
+                            'Favoris chargés, isFavorite: $isFavorite pour jobId: $jobId',
+                          );
+                          return IconButton(
+                            icon: Icon(
+                              isFavorite ? Icons.star : Icons.star_border,
+                              color: Colors.white,
+                            ),
+                            onPressed: () async {
+                              try {
+                                print('Toggling favori pour jobId: $jobId');
+                                await ref
+                                    .read(firestoreServiceProvider)
+                                    .toggleFavorite(
+                                      user.uid,
+                                      jobId,
+                                      !isFavorite,
+                                      'job',
+                                    );
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isFavorite
+                                          ? 'Retiré des favoris'
+                                          : 'Ajouté aux favoris',
+                                    ),
+                                  ),
                                 );
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  isFavorite
-                                      ? 'Retiré des favoris'
-                                      : 'Ajouté aux favoris',
-                                ),
-                              ),
-                            );
-                          } catch (e) {
-                            print(
-                              'Erreur lors du toggle favori: $e',
-                            ); // Debug log
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Erreur: $e')),
-                            );
-                          }
+                              } catch (e) {
+                                print('Erreur lors du toggle favori: $e');
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Erreur: $e')),
+                                );
+                              }
+                            },
+                          );
+                        },
+                        loading:
+                            () => const CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                        error: (e, _) {
+                          print('Erreur dans favoritesProvider: $e');
+                          return const Icon(Icons.error, color: Colors.white);
                         },
                       );
                     },
-                    loading:
-                        () => const CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
-                    error: (e, _) {
-                      print('Erreur dans favoritesProvider: $e'); // Debug log
-                      return const Icon(Icons.error, color: Colors.white);
-                    },
-                  );
-                },
+                  ),
+                ],
               ),
-            ],
-          ),
-          body: jobAsync.when(
-            data: (job) {
-              print('Offre chargée: ${job?.title}'); // Debug log
-              if (job == null) {
-                print('Offre null pour jobId: $jobId'); // Debug log
-                return const Center(child: Text('Erreur : Offre non trouvée'));
-              }
-              return Padding(
+              body: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: ListView(
                   children: [
@@ -205,73 +202,146 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () async {
-                        print(
-                          'Tentative de candidature pour jobId: $jobId',
-                        ); // Debug log
-                        final result = await FilePicker.platform.pickFiles(
-                          type: FileType.custom,
-                          allowedExtensions: ['pdf'],
-                        );
-                        if (result != null && result.files.isNotEmpty) {
-                          try {
-                            final cvUrl = await ref
-                                .read(firestoreServiceProvider)
-                                .uploadCV(user.uid, result.files.single);
-                            if (cvUrl != null) {
-                              print('CV uploadé, URL: $cvUrl'); // Debug log
-                              await ref
-                                  .read(firestoreServiceProvider)
-                                  .applyToJob(jobId, user.uid, cvUrl);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Candidature envoyée avec succès',
-                                  ),
+                    if (user.uid != null &&
+                        (ref
+                                    .watch(profileProvider(user.uid))
+                                    .valueOrNull
+                                    ?.role ??
+                                'candidate') ==
+                            'candidate') // Afficher uniquement pour candidats
+                      ElevatedButton(
+                        onPressed: () {
+                          print('Bouton Postuler cliqué pour jobId: $jobId');
+                          showDialog(
+                            context: context,
+                            builder:
+                                (context) => ApplicationFormDialog(
+                                  jobId: jobId,
+                                  userId: user.uid,
+                                  ref: ref,
                                 ),
-                              );
-                            }
-                          } catch (e) {
-                            print(
-                              'Erreur lors de l\'envoi de la candidature: $e',
-                            ); // Debug log
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  'Erreur lors de l\'envoi de la candidature: $e',
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryBlue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text('Postuler'),
+                      ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Candidatures',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.black,
+                      ),
+                    ),
+                    applicationsAsync.when(
+                      data: (applications) {
+                        if (applications.isEmpty) {
+                          return const Padding(
+                            padding: EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              'Aucune candidature pour cette offre',
+                              style: TextStyle(color: AppColors.darkGrey),
+                            ),
+                          );
+                        }
+                        return ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: applications.length,
+                          itemBuilder: (context, index) {
+                            final application = applications[index];
+                            return Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              margin: const EdgeInsets.symmetric(vertical: 8),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Candidat: ${application.candidateId}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: AppColors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Statut: ${application.status}',
+                                      style: const TextStyle(
+                                        color: AppColors.darkGrey,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Date: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
+                                      style: const TextStyle(
+                                        color: AppColors.darkGrey,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             );
-                          }
-                        }
+                          },
+                        );
                       },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: const Text('Postuler'),
+                      loading:
+                          () =>
+                              const Center(child: CircularProgressIndicator()),
+                      error:
+                          (e, _) => Center(
+                            child: Text(
+                              'Erreur: $e',
+                              style: const TextStyle(color: AppColors.darkGrey),
+                            ),
+                          ),
                     ),
                   ],
                 ),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) {
-              print('Erreur dans jobOfferProvider: $e'); // Debug log
-              return Center(child: Text('Erreur: $e'));
-            },
-          ),
+              ),
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) {
+            print('Erreur dans jobOfferProvider: $e');
+            return Center(child: Text('Erreur: $e'));
+          },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) {
-        print('Erreur dans authServiceProvider: $e'); // Debug log
+        print('Erreur dans authServiceProvider: $e');
         return Center(child: Text('Erreur: $e'));
       },
     );
   }
 }
+
+// Updated provider to ensure recruiter ownership
+final applicationsForJobProvider =
+    StreamProvider.family<List<Application>, String>((ref, jobId) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return const Stream.empty();
+      return FirebaseFirestore.instance
+          .collection('applications')
+          .where('jobId', isEqualTo: jobId)
+          .snapshots()
+          .map(
+            (snapshot) =>
+                snapshot.docs
+                    .map(
+                      (doc) => Application.fromFirestore(doc.data()!, doc.id),
+                    )
+                    .toList(),
+          );
+    });

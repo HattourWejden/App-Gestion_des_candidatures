@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import '../models/job_offer.dart';
 import '../models/application.dart';
 import '../models/user.dart';
@@ -51,19 +55,18 @@ final jobOfferProvider = StreamProvider.family<JobOffer?, String>((ref, jobId) {
       });
 });
 
-// Example provider for applications
 final applicationsProvider = StreamProvider.family<List<Application>, String>((
   ref,
-  offerId,
+  jobId,
 ) {
   return FirebaseFirestore.instance
       .collection('applications')
-      .where('offerId', isEqualTo: offerId)
+      .where('jobId', isEqualTo: jobId)
       .snapshots()
       .map(
         (snapshot) =>
             snapshot.docs
-                .map((doc) => Application.fromFirestore(doc.data(), doc.id))
+                .map((doc) => Application.fromFirestore(doc.data()!, doc.id))
                 .toList(),
       );
 });

@@ -266,17 +266,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ] else ...[
                         _buildProfileItem(
-                          icon: Icons.description,
-                          title: 'Mes candidatures',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Fonctionnalité à implémenter'),
-                              ),
-                            );
-                          },
-                        ),
-                        _buildProfileItem(
                           icon: Icons.star,
                           title: 'Offres favorites',
                           onTap: () {
@@ -284,17 +273,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               context,
                               AppRoutes.favorites,
                               arguments: {'role': 'candidate'},
-                            );
-                          },
-                        ),
-                        _buildProfileItem(
-                          icon: Icons.upload_file,
-                          title: 'Télécharger CV',
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Fonctionnalité à implémenter'),
-                              ),
                             );
                           },
                         ),
