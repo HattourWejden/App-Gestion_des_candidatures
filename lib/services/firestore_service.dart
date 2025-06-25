@@ -96,26 +96,34 @@ class FirestoreService {
         );
   }
 
-  // Toggle favorite status (for job offers or applications)
   Future<void> toggleFavorite(
     String userId,
     String itemId,
-    bool isFavorite,
+    bool isFavorited,
     String type,
   ) async {
+    print(
+      'Toggling favorite: userId=$userId, itemId=$itemId, isFavorited=$isFavorited, type=$type',
+    ); // Debug log
     final favoriteRef = _firestore
-        .collection('users')
-        .doc(userId)
         .collection('favorites')
-        .doc('$type-$itemId');
-    if (isFavorite) {
-      await favoriteRef.set({
-        'itemId': itemId,
-        'type': type,
-        'addedAt': FieldValue.serverTimestamp(),
-      });
-    } else {
-      await favoriteRef.delete();
+        .doc('$userId-$itemId');
+    try {
+      if (isFavorited) {
+        await favoriteRef.delete();
+        print('Favorite deleted: $userId-$itemId'); // Debug log
+      } else {
+        await favoriteRef.set({
+          'userId': userId,
+          'itemId': itemId,
+          'type': type,
+          'createdAt': Timestamp.now(),
+        });
+        print('Favorite added: $userId-$itemId'); // Debug log
+      }
+    } catch (e, stack) {
+      print('Error in toggleFavorite: $e, Stack: $stack'); // Debug log
+      rethrow; // Ensure error is caught in UI
     }
   }
 

@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../constants/app_routes.dart';
 import '../../constants/colors.dart';
-import '../../models/job_offer.dart';
 import '../../services/auth_service.dart';
 import '../../services/firestore_service.dart';
 import '../../providers.dart';
@@ -17,17 +16,23 @@ class CandidateJobDetailScreen extends ConsumerWidget {
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final jobId = args?['offerId'] as String?;
+    print('Job ID reçu: $jobId'); // Debug log
     final authState = ref.watch(authServiceProvider);
 
     return authState.when(
       data: (user) {
         if (user == null) {
+          print(
+            'Utilisateur non connecté, redirection vers login',
+          ); // Debug log
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pushReplacementNamed(context, AppRoutes.login);
           });
           return const SizedBox.shrink();
         }
+        print('Utilisateur connecté: ${user.uid}'); // Debug log
         if (jobId == null) {
+          print('Job ID null, affichage erreur'); // Debug log
           return const Scaffold(
             body: Center(child: Text('Erreur : Offre non trouvée')),
           );
@@ -51,6 +56,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                   return favoritesAsync.when(
                     data: (favorites) {
                       final isFavorite = favorites.contains(jobId);
+                      print(
+                        'Favoris chargés, isFavorite: $isFavorite pour jobId: $jobId',
+                      ); // Debug log
                       return IconButton(
                         icon: Icon(
                           isFavorite ? Icons.star : Icons.star_border,
@@ -58,6 +66,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                         ),
                         onPressed: () async {
                           try {
+                            print(
+                              'Toggling favori pour jobId: $jobId',
+                            ); // Debug log
                             await ref
                                 .read(firestoreServiceProvider)
                                 .toggleFavorite(
@@ -76,6 +87,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                               ),
                             );
                           } catch (e) {
+                            print(
+                              'Erreur lors du toggle favori: $e',
+                            ); // Debug log
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('Erreur: $e')),
                             );
@@ -87,8 +101,10 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                         () => const CircularProgressIndicator(
                           color: Colors.white,
                         ),
-                    error:
-                        (_, __) => const Icon(Icons.error, color: Colors.white),
+                    error: (e, _) {
+                      print('Erreur dans favoritesProvider: $e'); // Debug log
+                      return const Icon(Icons.error, color: Colors.white);
+                    },
                   );
                 },
               ),
@@ -96,7 +112,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
           ),
           body: jobAsync.when(
             data: (job) {
+              print('Offre chargée: ${job?.title}'); // Debug log
               if (job == null) {
+                print('Offre null pour jobId: $jobId'); // Debug log
                 return const Center(child: Text('Erreur : Offre non trouvée'));
               }
               return Padding(
@@ -189,6 +207,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () async {
+                        print(
+                          'Tentative de candidature pour jobId: $jobId',
+                        ); // Debug log
                         final result = await FilePicker.platform.pickFiles(
                           type: FileType.custom,
                           allowedExtensions: ['pdf'],
@@ -199,6 +220,7 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                                 .read(firestoreServiceProvider)
                                 .uploadCV(user.uid, result.files.single);
                             if (cvUrl != null) {
+                              print('CV uploadé, URL: $cvUrl'); // Debug log
                               await ref
                                   .read(firestoreServiceProvider)
                                   .applyToJob(jobId, user.uid, cvUrl);
@@ -211,6 +233,9 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                               );
                             }
                           } catch (e) {
+                            print(
+                              'Erreur lors de l\'envoi de la candidature: $e',
+                            ); // Debug log
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text(
@@ -221,6 +246,13 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                           }
                         }
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
                       child: const Text('Postuler'),
                     ),
                   ],
@@ -228,12 +260,18 @@ class CandidateJobDetailScreen extends ConsumerWidget {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Erreur: $e')),
+            error: (e, _) {
+              print('Erreur dans jobOfferProvider: $e'); // Debug log
+              return Center(child: Text('Erreur: $e'));
+            },
           ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erreur: $e')),
+      error: (e, _) {
+        print('Erreur dans authServiceProvider: $e'); // Debug log
+        return Center(child: Text('Erreur: $e'));
+      },
     );
   }
 }

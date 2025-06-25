@@ -22,8 +22,19 @@ final offersProvider = StreamProvider.family<List<JobOffer>, String>((
 });
 
 final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getOpenJobOffers();
+  print('Récupération des offres ouvertes');
+  return FirebaseFirestore.instance
+      .collection('jobs')
+      .where('status', isEqualTo: 'open')
+      .snapshots()
+      .map((snapshot) {
+        final offers =
+            snapshot.docs
+                .map((doc) => JobOffer.fromFirestore(doc.data(), doc.id))
+                .toList();
+        print('Offres ouvertes récupérées: ${offers.length}');
+        return offers;
+      });
 });
 
 final jobOfferProvider = StreamProvider.family<JobOffer?, String>((ref, jobId) {
@@ -39,12 +50,21 @@ final jobOfferProvider = StreamProvider.family<JobOffer?, String>((ref, jobId) {
       });
 });
 
+// Example provider for applications
 final applicationsProvider = StreamProvider.family<List<Application>, String>((
   ref,
-  jobId,
+  offerId,
 ) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getApplications(jobId);
+  return FirebaseFirestore.instance
+      .collection('applications')
+      .where('offerId', isEqualTo: offerId)
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs
+                .map((doc) => Application.fromFirestore(doc.data(), doc.id))
+                .toList(),
+      );
 });
 
 final favoritesProvider =
@@ -57,14 +77,64 @@ final favoriteJobsProvider = StreamProvider.family<List<JobOffer>, String>((
   ref,
   userId,
 ) {
-  final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getFavoriteJobs(userId);
+  print('Récupération des offres favorites pour userId: $userId'); // Debug log
+  return FirebaseFirestore.instance
+      .collection('favorites')
+      .where('userId', isEqualTo: userId)
+      .where('type', isEqualTo: 'job')
+      .snapshots()
+      .asyncMap((snapshot) async {
+        final jobIds =
+            snapshot.docs.map((doc) => doc.data()['itemId'] as String).toList();
+        print('IDs des offres favorites: $jobIds'); // Debug log
+        final jobs = <JobOffer>[];
+        for (final jobId in jobIds) {
+          final jobDoc =
+              await FirebaseFirestore.instance
+                  .collection('jobs')
+                  .doc(jobId)
+                  .get();
+          if (jobDoc.exists && jobDoc.data()!['status'] == 'open') {
+            jobs.add(JobOffer.fromFirestore(jobDoc.data()!, jobDoc.id));
+          }
+        }
+        print('Offres favorites chargées: ${jobs.length}'); // Debug log
+        return jobs;
+      });
 });
 
 final favoriteApplicationsProvider =
     StreamProvider.family<List<Application>, String>((ref, userId) {
-      final firestoreService = ref.watch(firestoreServiceProvider);
-      return firestoreService.getFavoriteApplications(userId);
+      print('Fetching favorite applications for userId: $userId'); // Debug log
+      return FirebaseFirestore.instance
+          .collection('favorites')
+          .where('userId', isEqualTo: userId)
+          .where('type', isEqualTo: 'application')
+          .snapshots()
+          .asyncMap((snapshot) async {
+            final applicationIds =
+                snapshot.docs
+                    .map((doc) => doc.data()['itemId'] as String)
+                    .toList();
+            print('Favorite application IDs: $applicationIds'); // Debug log
+            final applications = <Application>[];
+            for (final appId in applicationIds) {
+              final appDoc =
+                  await FirebaseFirestore.instance
+                      .collection('applications')
+                      .doc(appId)
+                      .get();
+              if (appDoc.exists) {
+                applications.add(
+                  Application.fromFirestore(appDoc.data()!, appDoc.id),
+                );
+              }
+            }
+            print(
+              'Loaded ${applications.length} favorite applications',
+            ); // Debug log
+            return applications;
+          });
     });
 
 final profileProvider = StreamProvider.family<UserModel?, String>((

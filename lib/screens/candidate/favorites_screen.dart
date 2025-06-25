@@ -25,11 +25,15 @@ class _CandidateFavoritesScreenState
     return authState.when(
       data: (user) {
         if (user == null) {
+          print(
+            'Utilisateur non connecté, redirection vers login',
+          ); // Debug log
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.pushReplacementNamed(context, AppRoutes.login);
           });
           return const Scaffold(body: SizedBox.shrink());
         }
+        print('Utilisateur connecté: ${user.uid}'); // Debug log
         return FutureBuilder<String?>(
           future: ref.read(authServiceProvider.notifier).getUserRole(user.uid),
           builder: (context, roleSnapshot) {
@@ -38,12 +42,21 @@ class _CandidateFavoritesScreenState
                 body: Center(child: CircularProgressIndicator()),
               );
             }
+            if (roleSnapshot.hasError) {
+              print(
+                'Erreur lors de la récupération du rôle: ${roleSnapshot.error}',
+              ); // Debug log
+            }
             if (roleSnapshot.data != 'candidate') {
+              print(
+                'Rôle non candidat: ${roleSnapshot.data}, redirection vers welcome',
+              ); // Debug log
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.pushReplacementNamed(context, AppRoutes.welcome);
               });
               return const Scaffold(body: SizedBox.shrink());
             }
+            print('Rôle valide: ${roleSnapshot.data}'); // Debug log
             final favoriteJobsAsync = ref.watch(favoriteJobsProvider(user.uid));
 
             return Scaffold(
@@ -57,6 +70,9 @@ class _CandidateFavoritesScreenState
               ),
               body: favoriteJobsAsync.when(
                 data: (jobs) {
+                  print(
+                    'Offres favorites chargées: ${jobs.length}',
+                  ); // Debug log
                   if (jobs.isEmpty) {
                     return const Center(
                       child: Text(
@@ -73,20 +89,24 @@ class _CandidateFavoritesScreenState
                     itemCount: jobs.length,
                     itemBuilder: (context, index) {
                       final job = jobs[index];
+                      print(
+                        'Affichage de l\'offre favorite: ${job.title}, ID: ${job.id}',
+                      ); // Debug log
                       return JobOfferCard(
                         offer: job,
                         role: 'candidate',
                         showFavoriteButton: true,
                         userId: user.uid,
-                        onTap:
-                            () => Navigator.pushNamed(
-                              context,
-                              AppRoutes.jobDetail,
-                              arguments: {
-                                'role': 'candidate',
-                                'offerId': job.id,
-                              },
-                            ),
+                        onTap: () {
+                          print(
+                            'Navigation vers jobDetail pour offerId: ${job.id}',
+                          ); // Debug log
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.jobDetail,
+                            arguments: {'role': 'candidate', 'offerId': job.id},
+                          );
+                        },
                       );
                     },
                   );
@@ -97,15 +117,19 @@ class _CandidateFavoritesScreenState
                         color: AppColors.primaryBlue,
                       ),
                     ),
-                error:
-                    (error, _) => Center(
-                      child: Text(
-                        'Erreur lors du chargement des favoris: $error',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.darkGrey,
-                        ),
+                error: (error, _) {
+                  print(
+                    'Erreur dans favoriteJobsProvider: $error',
+                  ); // Debug log
+                  return Center(
+                    child: Text(
+                      'Erreur lors du chargement des favoris: $error',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.darkGrey,
                       ),
                     ),
+                  );
+                },
               ),
               bottomNavigationBar: BottomNavigationBar(
                 selectedItemColor: AppColors.primaryBlue,
@@ -114,12 +138,14 @@ class _CandidateFavoritesScreenState
                 onTap: (index) {
                   setState(() => _currentIndex = index);
                   if (index == 0) {
+                    print('Navigation vers home (candidate)'); // Debug log
                     Navigator.pushReplacementNamed(
                       context,
                       AppRoutes.home,
                       arguments: {'role': 'candidate'},
                     );
                   } else if (index == 2) {
+                    print('Navigation vers profile'); // Debug log
                     Navigator.pushNamed(context, AppRoutes.profile);
                   }
                 },
@@ -145,7 +171,10 @@ class _CandidateFavoritesScreenState
       loading:
           () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: Center(child: Text('Erreur: $e'))),
+      error: (e, _) {
+        print('Erreur dans authServiceProvider: $e'); // Debug log
+        return Scaffold(body: Center(child: Text('Erreur: $e')));
+      },
     );
   }
 }

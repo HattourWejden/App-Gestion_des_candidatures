@@ -3,27 +3,32 @@ import '../../constants/colors.dart';
 
 class FilterChips extends StatelessWidget {
   final String selectedFilter;
-  final ValueChanged<String> onFilterChanged;
+  final Function(String) onFilterChanged;
+  final List<String> filterOptions;
 
   const FilterChips({
     super.key,
-    this.selectedFilter = 'all',
+    required this.selectedFilter,
     required this.onFilterChanged,
+    this.filterOptions = const ['all', 'Informatique', 'RH', 'Marketing'],
   });
 
   @override
   Widget build(BuildContext context) {
-    final filters = ['all', 'full-time', 'part-time', 'contract'];
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Wrap(
-        spacing: 8,
+        spacing: 8.0,
         children:
-            filters.map((filter) {
+            filterOptions.map((filter) {
               return ChoiceChip(
                 label: Text(filter == 'all' ? 'Tous' : filter),
                 selected: selectedFilter == filter,
+                onSelected: (selected) {
+                  if (selected) {
+                    onFilterChanged(filter);
+                  }
+                },
                 selectedColor: AppColors.primaryBlue,
                 labelStyle: TextStyle(
                   color:
@@ -31,11 +36,7 @@ class FilterChips extends StatelessWidget {
                           ? Colors.white
                           : AppColors.darkGrey,
                 ),
-                onSelected: (selected) {
-                  if (selected) {
-                    onFilterChanged(filter);
-                  }
-                },
+                backgroundColor: AppColors.lightGrey,
               );
             }).toList(),
       ),
