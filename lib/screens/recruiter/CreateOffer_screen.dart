@@ -273,10 +273,10 @@ class _CreateOfferScreenState extends ConsumerState<CreateOfferScreen> {
                     value: _department,
                     items: const [
                       DropdownMenuItem(
-                        value: 'IT',
+                        value: 'Informatique',
                         child: Text('Informatique'),
                       ),
-                      DropdownMenuItem(value: 'HR', child: Text('RH')),
+                      DropdownMenuItem(value: 'RH', child: Text('RH')),
                       DropdownMenuItem(
                         value: 'Marketing',
                         child: Text('Marketing'),

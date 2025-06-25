@@ -1,12 +1,12 @@
-import 'package:candid_app/services/auth_service.dart';
+import 'package:candid_app/constants/app_routes.dart';
+import 'package:candid_app/constants/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../constants/app_routes.dart';
-import '../../constants/colors.dart';
 import '../../widgets/job_offer_card.dart';
 import '../../widgets/search_bar.dart' as custom;
 import '../../widgets/filter_chips.dart';
 import '../../providers.dart';
+import '../../services/auth_service.dart';
 
 class CandidateDashboardScreen extends ConsumerStatefulWidget {
   const CandidateDashboardScreen({super.key});
@@ -83,8 +83,10 @@ class _CandidateDashboardScreenState
                   custom.SearchBar(
                     onChanged: (query) {
                       setState(() {
-                        _searchQuery = query;
-                        print('Recherche: $_searchQuery'); // Debug log
+                        _searchQuery = query.trim();
+                        print(
+                          'Search query updated: $_searchQuery',
+                        ); // Debug log
                       });
                     },
                   ),
@@ -111,19 +113,29 @@ class _CandidateDashboardScreenState
                         print(
                           'Offres ouvertes récupérées: ${offerList.length}',
                         ); // Debug log
+                        print(
+                          'Départements disponibles: ${offerList.map((offer) => offer.department).toSet()}',
+                        ); // Debug log
                         final filteredOffers =
                             offerList.where((offer) {
+                              final searchQueryLower =
+                                  _searchQuery.toLowerCase();
+                              final title = offer.title?.toLowerCase() ?? '';
+                              final description =
+                                  offer.description?.toLowerCase() ?? '';
                               final matchesSearch =
-                                  offer.title.toLowerCase().contains(
-                                    _searchQuery.toLowerCase(),
-                                  ) ||
-                                  offer.description.toLowerCase().contains(
-                                    _searchQuery.toLowerCase(),
-                                  );
+                                  _searchQuery.isEmpty ||
+                                  (title.contains(searchQueryLower) &&
+                                      title.isNotEmpty) ||
+                                  (description.contains(searchQueryLower) &&
+                                      description.isNotEmpty);
                               final matchesFilter =
                                   _selectedFilter == 'all' ||
-                                  offer.department ==
-                                      _selectedFilter; // Filter by job type
+                                  (offer.department?.toLowerCase() ==
+                                      _selectedFilter.toLowerCase());
+                              print(
+                                'Offre: ${offer.title}, Title: "$title", Description: "$description", SearchQuery: "$searchQueryLower", MatchesSearch: $matchesSearch, MatchesFilter: $matchesFilter',
+                              ); // Debug log
                               return matchesSearch && matchesFilter;
                             }).toList();
 
@@ -143,13 +155,15 @@ class _CandidateDashboardScreenState
                         }
 
                         return ListView.builder(
+                          key: ValueKey(
+                            _searchQuery + _selectedFilter,
+                          ), // Force rebuild
                           itemCount: filteredOffers.length,
                           itemBuilder: (context, index) {
                             final offer = filteredOffers[index];
                             print(
                               'Affichage de l\'offre: ${offer.title}, ID: ${offer.id}, Type: ${offer.department}',
                             ); // Debug log
-                            // In CandidateDashboardScreen, inside ListView.builder
                             return JobOfferCard(
                               offer: offer,
                               role: 'candidate',
@@ -175,9 +189,9 @@ class _CandidateDashboardScreenState
                       loading:
                           () =>
                               const Center(child: CircularProgressIndicator()),
-                      error: (error, _) {
+                      error: (error, stack) {
                         print(
-                          'Erreur dans openOffersProvider: $error',
+                          'Erreur dans openOffersProvider: $error, Stack: $stack',
                         ); // Debug log
                         return Center(child: Text('Erreur: $error'));
                       },
@@ -192,8 +206,10 @@ class _CandidateDashboardScreenState
       loading:
           () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) {
-        print('Erreur dans authServiceProvider: $e'); // Debug log
+      error: (e, stack) {
+        print(
+          'Erreur dans authServiceProvider: $e, Stack: $stack',
+        ); // Debug log
         return Scaffold(body: Center(child: Text('Erreur: $e')));
       },
     );

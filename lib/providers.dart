@@ -21,8 +21,9 @@ final offersProvider = StreamProvider.family<List<JobOffer>, String>((
       );
 });
 
+// In providers.dart
 final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
-  print('Récupération des offres ouvertes');
+  print('Fetching open offers'); // Debug log
   return FirebaseFirestore.instance
       .collection('jobs')
       .where('status', isEqualTo: 'open')
@@ -32,7 +33,7 @@ final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
             snapshot.docs
                 .map((doc) => JobOffer.fromFirestore(doc.data(), doc.id))
                 .toList();
-        print('Offres ouvertes récupérées: ${offers.length}');
+        print('Fetched ${offers.length} open offers'); // Debug log
         return offers;
       });
 });

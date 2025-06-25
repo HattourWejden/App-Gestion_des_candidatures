@@ -15,17 +15,22 @@ class FilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('FilterChips build, selectedFilter: $selectedFilter'); // Debug log
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Wrap(
         spacing: 8.0,
         children:
             filterOptions.map((filter) {
+              print(
+                'Rendering chip: $filter, selected: ${selectedFilter == filter}',
+              ); // Debug log
               return ChoiceChip(
                 label: Text(filter == 'all' ? 'Tous' : filter),
                 selected: selectedFilter == filter,
                 onSelected: (selected) {
                   if (selected) {
+                    print('Filter selected: $filter'); // Debug log
                     onFilterChanged(filter);
                   }
                 },
