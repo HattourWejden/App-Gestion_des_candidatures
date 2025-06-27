@@ -103,6 +103,35 @@ class RecruiterDashboardScreen extends ConsumerWidget {
                     () => Navigator.pushNamed(context, AppRoutes.createoffer),
                 child: const Icon(Icons.add, color: Colors.white),
               ),
+              bottomNavigationBar: BottomNavigationBar(
+                selectedItemColor: AppColors.primaryBlue,
+                unselectedItemColor: AppColors.darkGrey,
+                currentIndex: 0, // Default to Home
+                onTap: (index) {
+                  if (index == 1) {
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.applicationsManagement,
+                    );
+                  } else if (index == 2) {
+                    Navigator.pushNamed(context, AppRoutes.profile);
+                  }
+                },
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.dashboard),
+                    label: 'Accueil',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.list),
+                    label: 'Candidatures',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.person),
+                    label: 'Profil',
+                  ),
+                ],
+              ),
             );
           },
         );

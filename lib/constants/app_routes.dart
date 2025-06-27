@@ -9,6 +9,6 @@ class AppRoutes {
   static const String profile = '/profile';
   static const String provider = '/provider';
   static String applicationDetail = '/applicationDetail';
-  static const String home  = '/home';
-  
+  static const String home = '/home';
+  static const String applicationsManagement = '/applicationsManagement';
 }

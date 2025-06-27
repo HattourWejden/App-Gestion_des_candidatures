@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/src/platform_file.dart';
-
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,9 +12,7 @@ class FirestoreService {
 
   Future<void> addJob(JobOffer job) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('jobs')
-          .add(job.toFirestore());
+      await _firestore.collection('jobs').add(job.toFirestore());
     } catch (e) {
       print('Erreur lors de l\'ajout de l\'offre: $e');
       rethrow;
@@ -24,32 +21,27 @@ class FirestoreService {
 
   Future<void> updateJobStatus(String jobId, String status) async {
     try {
-      print(
-        'Mise à jour du statut pour jobId: $jobId, statut: $status',
-      ); // Debug log
-      await FirebaseFirestore.instance.collection('jobs').doc(jobId).update({
-        'status': status,
-      });
+      print('Mise à jour du statut pour jobId: $jobId, statut: $status');
+      await _firestore.collection('jobs').doc(jobId).update({'status': status});
     } catch (e) {
-      print('Erreur dans updateJobStatus: $e'); // Debug log
+      print('Erreur dans updateJobStatus: $e');
       rethrow;
     }
   }
 
   Future<void> deleteJob(String jobId) async {
     try {
-      print('Suppression de jobId: $jobId'); // Debug log
-      await FirebaseFirestore.instance.collection('jobs').doc(jobId).delete();
+      print('Suppression de jobId: $jobId');
+      await _firestore.collection('jobs').doc(jobId).delete();
     } catch (e) {
-      print('Erreur dans deleteJob: $e'); // Debug log
+      print('Erreur dans deleteJob: $e');
       rethrow;
     }
   }
 
-  // Get job offers for a recruiter
   Stream<List<JobOffer>> getJobOffers(String recruiterId) {
     return _firestore
-        .collection('job_offers')
+        .collection('jobs')
         .where('recruiterId', isEqualTo: recruiterId)
         .snapshots()
         .map(
@@ -60,10 +52,9 @@ class FirestoreService {
         );
   }
 
-  // Get all open job offers
   Stream<List<JobOffer>> getOpenJobOffers() {
     return _firestore
-        .collection('job_offers')
+        .collection('jobs')
         .where('status', isEqualTo: 'open')
         .snapshots()
         .map(
@@ -75,19 +66,16 @@ class FirestoreService {
   }
 
   Stream<JobOffer?> getJobOffer(String jobId) {
-    return _firestore.collection('job_offers').doc(jobId).snapshots().map((
-      snapshot,
-    ) {
+    return _firestore.collection('jobs').doc(jobId).snapshots().map((snapshot) {
       if (!snapshot.exists) return null;
       return JobOffer.fromFirestore(snapshot.data()!, snapshot.id);
     });
   }
 
-  // Get applications for a job offer
   Stream<List<Application>> getApplications(String jobId) {
     return _firestore
         .collection('applications')
-        .where('offerId', isEqualTo: jobId)
+        .where('jobId', isEqualTo: jobId)
         .snapshots()
         .map(
           (snapshot) =>
@@ -105,14 +93,16 @@ class FirestoreService {
   ) async {
     print(
       'Toggling favorite: userId=$userId, itemId=$itemId, isFavorited=$isFavorited, type=$type',
-    ); // Debug log
+    );
     final favoriteRef = _firestore
+        .collection('users')
+        .doc(userId)
         .collection('favorites')
-        .doc('$userId-$itemId');
+        .doc(itemId); // Use itemId as doc ID
     try {
       if (isFavorited) {
         await favoriteRef.delete();
-        print('Favorite deleted: $userId-$itemId'); // Debug log
+        print('Favorite deleted: $userId-$itemId');
       } else {
         await favoriteRef.set({
           'userId': userId,
@@ -120,15 +110,14 @@ class FirestoreService {
           'type': type,
           'createdAt': Timestamp.now(),
         });
-        print('Favorite added: $userId-$itemId'); // Debug log
+        print('Favorite added: $userId-$itemId');
       }
     } catch (e, stack) {
-      print('Error in toggleFavorite: $e, Stack: $stack'); // Debug log
-      rethrow; // Ensure error is caught in UI
+      print('Error in toggleFavorite: $e, Stack: $stack');
+      rethrow;
     }
   }
 
-  // Get favorite item IDs for a user (job offers or applications)
   Stream<List<String>> getFavorites(String userId, String type) {
     return _firestore
         .collection('users')
@@ -144,7 +133,6 @@ class FirestoreService {
         );
   }
 
-  // Get favorite job offers
   Stream<List<JobOffer>> getFavoriteJobs(String userId) {
     return _firestore
         .collection('users')
@@ -160,7 +148,7 @@ class FirestoreService {
           if (jobIds.isEmpty) return [];
           final jobsSnapshot =
               await _firestore
-                  .collection('job_offers')
+                  .collection('jobs')
                   .where(FieldPath.documentId, whereIn: jobIds)
                   .get();
           return jobsSnapshot.docs
@@ -169,7 +157,6 @@ class FirestoreService {
         });
   }
 
-  // Get favorite applications
   Stream<List<Application>> getFavoriteApplications(String userId) {
     return _firestore
         .collection('users')
@@ -194,7 +181,6 @@ class FirestoreService {
         });
   }
 
-  // Get user profile
   Stream<UserModel?> getUserProfile(String userId) {
     return _firestore.collection('users').doc(userId).snapshots().map((
       snapshot,
@@ -204,7 +190,6 @@ class FirestoreService {
     });
   }
 
-  // Update user profile
   Future<void> updateUserProfile(
     String userId,
     Map<String, dynamic> data,
@@ -225,7 +210,7 @@ class FirestoreService {
     final applicationData = {
       'jobId': jobId,
       'userId': userId,
-      'createdAt': DateTime.now(),
+      'createdAt': Timestamp.now(), // Use Timestamp for Firestore
       if (cvUrl != null) 'cvUrl': cvUrl,
       ...?additionalData,
     };
@@ -235,11 +220,9 @@ class FirestoreService {
 
   Future<String> getUserRole(String uid) async {
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final doc = await _firestore.collection('users').doc(uid).get();
       if (doc.exists) {
-        return doc.data()?['role'] ??
-            'candidate'; // Par défaut, rôle 'candidate'
+        return doc.data()?['role'] ?? 'candidate'; // Default to 'candidate'
       }
       throw Exception('Utilisateur non trouvé');
     } catch (e) {
@@ -248,7 +231,33 @@ class FirestoreService {
     }
   }
 
-  Future uploadCV(String userId, PlatformFile platformFile) async {}
+  Future<void> uploadCV(String userId, PlatformFile platformFile) async {
+    // Implement CV upload logic if needed
+  }
+
+  // In FirestoreService
+  Future<void> updateApplicationStatus(
+    String applicationId,
+    String status,
+  ) async {
+    try {
+      await _firestore.collection('applications').doc(applicationId).update({
+        'status': status,
+      });
+    } catch (e) {
+      print('Erreur dans updateApplicationStatus: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> deleteApplication(String applicationId) async {
+    try {
+      await _firestore.collection('applications').doc(applicationId).delete();
+    } catch (e) {
+      print('Erreur dans deleteApplication: $e');
+      rethrow;
+    }
+  }
 }
 
 final firestoreServiceProvider = Provider<FirestoreService>(

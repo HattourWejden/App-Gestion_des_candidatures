@@ -6,7 +6,6 @@ import '../../constants/colors.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/application_card.dart';
 
-
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
 

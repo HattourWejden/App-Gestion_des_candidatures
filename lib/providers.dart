@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../models/job_offer.dart';
@@ -140,6 +141,30 @@ final favoriteApplicationsProvider =
             return applications;
           });
     });
+
+// In providers.dart
+final allApplicationsProvider = StreamProvider<List<Application>>((ref) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return const Stream.empty();
+  return FirebaseFirestore.instance
+      .collection('applications')
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs
+                .map(
+                  (doc) => Application.fromFirestore(
+                    doc.data()! as Map<String, dynamic>,
+                    doc.id,
+                  ),
+                )
+                .toList(),
+      )
+      .handleError((error, stack) {
+        print('Erreur dans allApplicationsProvider: $error, Stack: $stack');
+        return <Application>[];
+      });
+});
 
 final profileProvider = StreamProvider.family<UserModel?, String>((
   ref,

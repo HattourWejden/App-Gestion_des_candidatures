@@ -3,6 +3,7 @@ import 'package:candid_app/screens/auth/splash_screen.dart';
 import 'package:candid_app/screens/candidate/candidate_dashboard_screen.dart';
 import 'package:candid_app/screens/candidate/jobDetail_screen.dart';
 import 'package:candid_app/screens/profile_screen.dart';
+import 'package:candid_app/screens/recruiter/ApplicationsManagementScreen.dart';
 import 'package:candid_app/screens/recruiter/CreateOffer_screen.dart';
 import 'package:candid_app/screens/recruiter/favoritesscreen.dart';
 import 'package:candid_app/screens/recruiter/recruiter_dashboard_screen.dart';
@@ -55,7 +56,9 @@ class MyApp extends StatelessWidget {
         AppRoutes.createoffer: (context) => const CreateOfferScreen(),
         AppRoutes.profile: (context) => const ProfileScreen(),
         AppRoutes.favorites: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           final role = args?['role'] ?? 'candidate';
           if (role == 'recruiter') {
             return const FavoritesScreen();
@@ -63,7 +66,9 @@ class MyApp extends StatelessWidget {
           return const CandidateFavoritesScreen();
         },
         AppRoutes.jobDetail: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           final role = args?['role'] ?? 'candidate';
           if (role == 'recruiter') {
             return const JobDetailScreen();
@@ -71,14 +76,19 @@ class MyApp extends StatelessWidget {
           return const CandidateJobDetailScreen();
         },
         AppRoutes.home: (context) {
-          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)?.settings.arguments
+                  as Map<String, dynamic>?;
           final role = args?['role'] ?? 'candidate';
           if (role == 'recruiter') {
             return const RecruiterDashboardScreen();
           }
           return const CandidateDashboardScreen();
         },
-        AppRoutes.applicationDetail: (context) => const ApplicationDetailScreen(),
+        AppRoutes.applicationDetail:
+            (context) => const ApplicationDetailScreen(),
+        AppRoutes.applicationsManagement:
+            (context) => const ApplicationsManagementScreen(),
       },
     );
   }

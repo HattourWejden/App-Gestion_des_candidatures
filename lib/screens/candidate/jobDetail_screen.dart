@@ -20,6 +20,7 @@ class CandidateJobDetailScreen extends ConsumerWidget {
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final jobId = args?['offerId'] as String?;
     print('Job ID reçu: $jobId'); // Debug log
+
     final authState = ref.watch(authServiceProvider);
 
     return authState.when(
@@ -202,110 +203,39 @@ class CandidateJobDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // Afficher le bouton "Postuler" uniquement pour les candidats
                     if (user.uid != null &&
                         (ref
                                     .watch(profileProvider(user.uid))
                                     .valueOrNull
                                     ?.role ??
                                 'candidate') ==
-                            'candidate') // Afficher uniquement pour candidats
-                      ElevatedButton(
-                        onPressed: () {
-                          print('Bouton Postuler cliqué pour jobId: $jobId');
-                          showDialog(
-                            context: context,
-                            builder:
-                                (context) => ApplicationFormDialog(
-                                  jobId: jobId,
-                                  userId: user.uid,
-                                  ref: ref,
-                                ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primaryBlue,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: const Text('Postuler'),
-                      ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Candidatures',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.black,
-                      ),
-                    ),
-                    applicationsAsync.when(
-                      data: (applications) {
-                        if (applications.isEmpty) {
-                          return const Padding(
-                            padding: EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              'Aucune candidature pour cette offre',
-                              style: TextStyle(color: AppColors.darkGrey),
-                            ),
-                          );
-                        }
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: applications.length,
-                          itemBuilder: (context, index) {
-                            final application = applications[index];
-                            return Card(
-                              elevation: 2,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Candidat: ${application.candidateId}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                        color: AppColors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      'Statut: ${application.status}',
-                                      style: const TextStyle(
-                                        color: AppColors.darkGrey,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Date: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
-                                      style: const TextStyle(
-                                        color: AppColors.darkGrey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            'candidate')
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            print('Bouton Postuler cliqué pour jobId: $jobId');
+                            showDialog(
+                              context: context,
+                              builder:
+                                  (context) => ApplicationFormDialog(
+                                    jobId: jobId ?? '',
+                                    userId: user.uid,
+                                    ref: ref,
+                                  ),
                             );
                           },
-                        );
-                      },
-                      loading:
-                          () =>
-                              const Center(child: CircularProgressIndicator()),
-                      error:
-                          (e, _) => Center(
-                            child: Text(
-                              'Erreur: $e',
-                              style: const TextStyle(color: AppColors.darkGrey),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                    ),
+                          child: const Text('Postuler'),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -340,8 +270,15 @@ final applicationsForJobProvider =
             (snapshot) =>
                 snapshot.docs
                     .map(
-                      (doc) => Application.fromFirestore(doc.data()!, doc.id),
+                      (doc) => Application.fromFirestore(
+                        doc.data() as Map<String, dynamic>,
+                        doc.id,
+                      ),
                     )
                     .toList(),
-          );
+          )
+          .handleError((error, stack) {
+            print('Erreur dans applicationsForJobProvider: $error');
+            return [];
+          });
     });
