@@ -14,6 +14,7 @@ class CandidateFavoritesScreen extends ConsumerStatefulWidget {
       _CandidateFavoritesScreenState();
 }
 
+
 class _CandidateFavoritesScreenState
     extends ConsumerState<CandidateFavoritesScreen> {
   int _currentIndex = 1; // Favorites tab

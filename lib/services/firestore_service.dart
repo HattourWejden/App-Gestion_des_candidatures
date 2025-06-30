@@ -243,7 +243,7 @@ class FirestoreService {
       );
     } catch (e, stack) {
       print('Error updating application $applicationId: $e, Stack: $stack');
-      rethrow; // Ensure the error is propagated to the UI
+      rethrow; // Propagate the error to the UI
     }
   }
 
@@ -254,7 +254,7 @@ class FirestoreService {
       print('Application $applicationId deleted successfully');
     } catch (e, stack) {
       print('Error deleting application $applicationId: $e, Stack: $stack');
-      rethrow; // Ensure the error is propagated to the UI
+      rethrow; // Propagate the error to the UI
     }
   }
 }
