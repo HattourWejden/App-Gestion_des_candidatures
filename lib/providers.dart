@@ -1,7 +1,5 @@
 import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -26,9 +24,8 @@ final offersProvider = StreamProvider.family<List<JobOffer>, String>((
       );
 });
 
-// In providers.dart
 final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
-  print('Fetching open offers'); // Debug log
+  print('Fetching open offers');
   return FirebaseFirestore.instance
       .collection('jobs')
       .where('status', isEqualTo: 'open')
@@ -38,7 +35,7 @@ final openOffersProvider = StreamProvider<List<JobOffer>>((ref) {
             snapshot.docs
                 .map((doc) => JobOffer.fromFirestore(doc.data(), doc.id))
                 .toList();
-        print('Fetched ${offers.length} open offers'); // Debug log
+        print('Fetched ${offers.length} open offers');
         return offers;
       });
 });
@@ -82,89 +79,63 @@ final favoriteJobsProvider = StreamProvider.family<List<JobOffer>, String>((
   ref,
   userId,
 ) {
-  print('Récupération des offres favorites pour userId: $userId'); // Debug log
+  final firestoreService = ref.watch(firestoreServiceProvider);
+  return firestoreService.getFavoriteJobs(userId);
+});
+
+final favoriteApplicationsProvider = StreamProvider.family<
+  List<Application>,
+  String
+>((ref, userId) {
+  print('Fetching favorite applications for userId: $userId');
   return FirebaseFirestore.instance
       .collection('favorites')
       .where('userId', isEqualTo: userId)
-      .where('type', isEqualTo: 'job')
+      .where('type', isEqualTo: 'application')
       .snapshots()
       .asyncMap((snapshot) async {
-        final jobIds =
-            snapshot.docs.map((doc) => doc.data()['itemId'] as String).toList();
-        print('IDs des offres favorites: $jobIds'); // Debug log
-        final jobs = <JobOffer>[];
-        for (final jobId in jobIds) {
-          final jobDoc =
-              await FirebaseFirestore.instance
-                  .collection('jobs')
-                  .doc(jobId)
-                  .get();
-          if (jobDoc.exists && jobDoc.data()!['status'] == 'open') {
-            jobs.add(JobOffer.fromFirestore(jobDoc.data()!, jobDoc.id));
-          }
-        }
-        print('Offres favorites chargées: ${jobs.length}'); // Debug log
-        return jobs;
-      });
-});
-
-final favoriteApplicationsProvider =
-    StreamProvider.family<List<Application>, String>((ref, userId) {
-      print('Fetching favorite applications for userId: $userId'); // Debug log
-      return FirebaseFirestore.instance
-          .collection('favorites')
-          .where('userId', isEqualTo: userId)
-          .where('type', isEqualTo: 'application')
-          .snapshots()
-          .asyncMap((snapshot) async {
-            final applicationIds =
-                snapshot.docs
-                    .map((doc) => doc.data()['itemId'] as String)
-                    .toList();
-            print('Favorite application IDs: $applicationIds'); // Debug log
-            final applications = <Application>[];
-            for (final appId in applicationIds) {
-              final appDoc =
+        final applications = <Application>[];
+        for (var doc in snapshot.docs) {
+          final data = doc.data();
+          final applicationId = data['itemId'] as String?;
+          if (applicationId != null) {
+            try {
+              final applicationDoc =
                   await FirebaseFirestore.instance
                       .collection('applications')
-                      .doc(appId)
+                      .doc(applicationId)
                       .get();
-              if (appDoc.exists) {
+              if (applicationDoc.exists) {
                 applications.add(
-                  Application.fromFirestore(appDoc.data()!, appDoc.id),
-                );
-              }
-            }
-            print(
-              'Loaded ${applications.length} favorite applications',
-            ); // Debug log
-            return applications;
-          });
-    });
-
-// In providers.dart
-final allApplicationsProvider = StreamProvider<List<Application>>((ref) {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return const Stream.empty();
-  return FirebaseFirestore.instance
-      .collection('applications')
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs
-                .map(
-                  (doc) => Application.fromFirestore(
-                    doc.data()! as Map<String, dynamic>,
-                    doc.id,
+                  Application.fromFirestore(
+                    applicationDoc.data()!,
+                    applicationDoc.id,
                   ),
-                )
-                .toList(),
-      )
+                );
+              } else {
+                print('Application not found: $applicationId');
+              }
+            } catch (e, stack) {
+              print(
+                'Error fetching application $applicationId: $e, Stack: $stack',
+              );
+            }
+          } else {
+            print('Invalid itemId in favorite: $data');
+          }
+        }
+        print(
+          'Fetched ${applications.length} favorite applications for user: $userId',
+        );
+        return applications;
+      })
       .handleError((error, stack) {
-        print('Erreur dans allApplicationsProvider: $error, Stack: $stack');
+        print('Error in favoriteApplicationsProvider: $error, Stack: $stack');
         return <Application>[];
       });
 });
+
+
 
 final profileProvider = StreamProvider.family<UserModel?, String>((
   ref,
