@@ -5,12 +5,492 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../constants/app_routes.dart';
 import '../../constants/colors.dart';
 import '../../providers.dart';
 
-// Moved allApplicationsProvider into the file as per your setup
+// ApplicationCard Widget for reusability
+class ApplicationCard extends StatelessWidget {
+  final Application application;
+  final bool showFavoriteButton;
+  final String role;
+  final bool isFavorite;
+  final VoidCallback? onTap;
+  final VoidCallback? onFavoriteToggle;
+
+  const ApplicationCard({
+    super.key,
+    required this.application,
+    this.showFavoriteButton = false,
+    required this.role,
+    this.isFavorite = false,
+    this.onTap,
+    this.onFavoriteToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [Colors.white, AppColors.lightGrey.withOpacity(0.5)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: ExpansionTile(
+            tilePadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            leading: CircleAvatar(
+              backgroundColor: AppColors.primaryBlue.withOpacity(0.1),
+              child: Text(
+                application.name?.substring(0, 1).toUpperCase() ?? 'C',
+                style: GoogleFonts.roboto(
+                  color: AppColors.primaryBlue,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(
+              application.name ?? 'Candidat ${application.candidateId}',
+              style: GoogleFonts.roboto(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: AppColors.darkGrey,
+              ),
+            ),
+            subtitle: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(application.status),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    application.status.toUpperCase(),
+                    style: GoogleFonts.roboto(
+                      fontSize: 12,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  DateFormat('dd/MM/yy').format(application.appliedAt),
+                  style: GoogleFonts.roboto(
+                    fontSize: 14,
+                    color: AppColors.darkGrey.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+            trailing:
+                showFavoriteButton
+                    ? IconButton(
+                      icon: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : AppColors.darkGrey,
+                      ),
+                      onPressed: onFavoriteToggle,
+                    )
+                    : null,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (application.email != null)
+                      _buildInfoRow(Icons.email, 'Email', application.email!),
+                    if (application.phone != null)
+                      _buildInfoRow(
+                        Icons.phone,
+                        'Téléphone',
+                        application.phone!,
+                      ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildActionButton(
+                          context,
+                          'Voir détails',
+                          Icons.visibility,
+                          AppColors.primaryBlue,
+                          () => _showApplicationDetails(context, application),
+                        ),
+                        _buildActionButton(
+                          context,
+                          'Modifier statut',
+                          Icons.edit,
+                          AppColors.primaryGreen,
+                          () async {
+                            final newStatus = await _showStatusDialog(
+                              context,
+                              application.status,
+                            );
+                            if (newStatus != null &&
+                                newStatus != application.status) {
+                              try {
+                                await ProviderScope.containerOf(context)
+                                    .read(firestoreServiceProvider)
+                                    .updateApplicationStatus(
+                                      application.id,
+                                      newStatus,
+                                    );
+                                ProviderScope.containerOf(
+                                  context,
+                                ).refresh(allApplicationsProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Statut mis à jour'),
+                                    backgroundColor: AppColors.primaryGreen,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erreur: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        _buildActionButton(
+                          context,
+                          'Supprimer',
+                          Icons.delete,
+                          Colors.red,
+                          () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder:
+                                  (context) => AlertDialog(
+                                    title: const Text(
+                                      'Confirmer la suppression',
+                                    ),
+                                    content: const Text(
+                                      'Voulez-vous supprimer cette candidature ?',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed:
+                                            () => Navigator.pop(context, false),
+                                        child: const Text('Annuler'),
+                                      ),
+                                      TextButton(
+                                        onPressed:
+                                            () => Navigator.pop(context, true),
+                                        child: const Text(
+                                          'Supprimer',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                            );
+                            if (confirm == true) {
+                              try {
+                                await ProviderScope.containerOf(context)
+                                    .read(firestoreServiceProvider)
+                                    .deleteApplication(application.id);
+                                ProviderScope.containerOf(
+                                  context,
+                                ).refresh(allApplicationsProvider);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Candidature supprimée'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Erreur: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'accepted':
+        return AppColors.primaryGreen;
+      case 'rejected':
+        return Colors.red;
+      case 'in_progress':
+        return Colors.orange;
+      case 'pending':
+      default:
+        return AppColors.primaryBlue;
+    }
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.primaryBlue),
+          const SizedBox(width: 8),
+          Text(
+            '$label: ',
+            style: GoogleFonts.roboto(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.darkGrey,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.roboto(
+                fontSize: 14,
+                color: AppColors.darkGrey,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton(
+    BuildContext context,
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onPressed,
+  ) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 2,
+      ),
+    );
+  }
+
+  void _showApplicationDetails(BuildContext context, Application application) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Détails de la candidature',
+              style: GoogleFonts.roboto(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildInfoRow(
+                    Icons.person,
+                    'Candidat',
+                    application.candidateId,
+                  ),
+                  _buildInfoRow(Icons.info, 'Statut', application.status),
+                  _buildInfoRow(
+                    Icons.calendar_today,
+                    'Date',
+                    DateFormat('dd/MM/yyyy').format(application.appliedAt),
+                  ),
+                  if (application.cvUrl != null)
+                    _buildInfoRow(Icons.link, 'CV URL', application.cvUrl!),
+                  if (application.name != null)
+                    _buildInfoRow(Icons.person, 'Nom', application.name!),
+                  if (application.email != null)
+                    _buildInfoRow(Icons.email, 'Email', application.email!),
+                  if (application.phone != null)
+                    _buildInfoRow(Icons.phone, 'Téléphone', application.phone!),
+                  if (application.education != null)
+                    _buildInfoRow(
+                      Icons.school,
+                      'Éducation',
+                      application.education!,
+                    ),
+                  if (application.experience != null)
+                    _buildInfoRow(
+                      Icons.work,
+                      'Expérience',
+                      application.experience!,
+                    ),
+                  if (application.skills != null)
+                    _buildInfoRow(
+                      Icons.star,
+                      'Compétences',
+                      application.skills!,
+                    ),
+                  if (application.languages != null)
+                    _buildInfoRow(
+                      Icons.language,
+                      'Langues',
+                      application.languages!,
+                    ),
+                  if (application.coverLetter != null)
+                    _buildInfoRow(
+                      Icons.description,
+                      'Lettre de motivation',
+                      application.coverLetter!,
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Fermer',
+                  style: GoogleFonts.roboto(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<String?> _showStatusDialog(
+    BuildContext context,
+    String currentStatus,
+  ) async {
+    return showDialog<String>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Text(
+              'Modifier le statut',
+              style: GoogleFonts.roboto(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primaryBlue,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildStatusOption(
+                  context,
+                  'En attente',
+                  'pending',
+                  currentStatus,
+                ),
+                _buildStatusOption(
+                  context,
+                  'En cours',
+                  'in_progress',
+                  currentStatus,
+                ),
+                _buildStatusOption(
+                  context,
+                  'Acceptée',
+                  'accepted',
+                  currentStatus,
+                ),
+                _buildStatusOption(
+                  context,
+                  'Rejetée',
+                  'rejected',
+                  currentStatus,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Annuler',
+                  style: GoogleFonts.roboto(
+                    color: AppColors.primaryBlue,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildStatusOption(
+    BuildContext context,
+    String title,
+    String value,
+    String currentStatus,
+  ) {
+    return ListTile(
+      title: Text(
+        title,
+        style: GoogleFonts.roboto(
+          fontSize: 16,
+          color:
+              value == currentStatus
+                  ? AppColors.primaryBlue
+                  : AppColors.darkGrey,
+        ),
+      ),
+      trailing:
+          value == currentStatus
+              ? const Icon(Icons.check_circle, color: AppColors.primaryBlue)
+              : null,
+      onTap: () => Navigator.pop(context, value),
+    );
+  }
+}
+
+// ApplicationsManagementScreen
 final allApplicationsProvider = StreamProvider<List<Application>>((ref) {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
@@ -82,360 +562,127 @@ class ApplicationsManagementScreen extends ConsumerWidget {
                   backgroundColor: AppColors.lightGrey,
                   appBar: AppBar(
                     backgroundColor: AppColors.primaryBlue,
-                    title: const Text(
+                    title: Text(
                       'Gestion des Candidatures',
-                      style: TextStyle(color: Colors.white),
+                      style: GoogleFonts.roboto(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                    elevation: 0,
+                    centerTitle: true,
                   ),
-                  body: Consumer(
-                    builder: (context, ref, _) {
-                      final applicationsAsync = ref.watch(
-                        allApplicationsProvider,
-                      );
-                      return applicationsAsync.when(
-                        data: (applications) {
-                          if (applications.isEmpty) {
-                            return const Center(
-                              child: Text(
-                                'Aucune candidature disponible',
-                                style: TextStyle(
-                                  color: AppColors.darkGrey,
-                                  fontSize: 18,
+                  body:
+                      applications.isEmpty
+                          ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.description_outlined,
+                                  size: 64,
+                                  color: AppColors.darkGrey.withOpacity(0.5),
                                 ),
-                              ),
-                            );
-                          }
-                          return ListView.builder(
-                            padding: const EdgeInsets.all(16.0),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Aucune candidature disponible',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 18,
+                                    color: AppColors.darkGrey,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Vérifiez à nouveau plus tard',
+                                  style: GoogleFonts.roboto(
+                                    fontSize: 14,
+                                    color: AppColors.darkGrey.withOpacity(0.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                          : ListView.builder(
+                            padding: EdgeInsets.all(
+                              MediaQuery.of(context).size.width * 0.04,
+                            ),
                             itemCount: applications.length,
                             itemBuilder: (context, index) {
-                              print(
-                                'Building ApplicationCard for index: $index',
-                              );
                               final application = applications[index];
                               final isFavoriteAsync = ref.watch(
                                 favoriteApplicationsProvider(user.uid),
                               );
-
-                              return Card(
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                child: ExpansionTile(
-                                  title: Text(
-                                    'Candidat',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    'Statut: ${application.status}',
-                                    style: const TextStyle(
-                                      color: AppColors.darkGrey,
-                                    ),
-                                  ),
-                                  trailing: isFavoriteAsync.when(
-                                    data: (favApps) {
-                                      final isFavorite = favApps.any(
-                                        (app) => app.id == application.id,
-                                      );
-                                      return IconButton(
-                                        icon: Icon(
-                                          isFavorite
-                                              ? Icons.favorite
-                                              : Icons.favorite_border,
-                                          color:
+                              return isFavoriteAsync.when(
+                                data: (favApps) {
+                                  final isFavorite = favApps.any(
+                                    (app) => app.id == application.id,
+                                  );
+                                  return ApplicationCard(
+                                    application: application,
+                                    showFavoriteButton: true,
+                                    role: 'recruiter',
+                                    isFavorite: isFavorite,
+                                    onFavoriteToggle: () async {
+                                      try {
+                                        await ref
+                                            .read(firestoreServiceProvider)
+                                            .toggleFavorite(
+                                              user.uid,
+                                              application.id,
+                                              isFavorite,
+                                              'application',
+                                            );
+                                        ref.invalidate(
+                                          favoriteApplicationsProvider(
+                                            user.uid,
+                                          ),
+                                        );
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
                                               isFavorite
-                                                  ? Colors.red
-                                                  : AppColors.darkGrey,
-                                        ),
-                                        onPressed: () async {
-                                          try {
-                                            print(
-                                              'Toggling favorite for application: ${application.id}, user: ${user.uid}, current state: $isFavorite',
-                                            );
-                                            await ref
-                                                .read(firestoreServiceProvider)
-                                                .toggleFavorite(
-                                                  user.uid,
-                                                  application.id,
-                                                  isFavorite,
-                                                  'application',
-                                                );
-                                            ref.invalidate(
-                                              favoriteApplicationsProvider(
-                                                user.uid,
-                                              ),
-                                            );
-                                            print(
-                                              'Favorite toggled successfully',
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  isFavorite
-                                                      ? 'Retiré des favoris'
-                                                      : 'Ajouté aux favoris',
-                                                ),
-                                              ),
-                                            );
-                                          } catch (e, stack) {
-                                            print(
-                                              'Error toggling favorite: $e, Stack: $stack',
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text('Erreur: $e'),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      );
+                                                  ? 'Retiré des favoris'
+                                                  : 'Ajouté aux favoris',
+                                            ),
+                                            backgroundColor:
+                                                isFavorite
+                                                    ? Colors.red
+                                                    : AppColors.primaryGreen,
+                                          ),
+                                        );
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text('Erreur: $e'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
                                     },
-                                    loading:
-                                        () => const SizedBox(
-                                          width: 24,
-                                          height: 24,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
+                                  );
+                                },
+                                loading:
+                                    () => const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                error:
+                                    (error, stack) => Center(
+                                      child: Text(
+                                        'Erreur: $error',
+                                        style: GoogleFonts.roboto(
+                                          color: AppColors.darkGrey,
                                         ),
-                                    error: (error, stack) {
-                                      print(
-                                        'Error in favoriteApplicationsProvider: $error, Stack: $stack',
-                                      );
-                                      return const Icon(Icons.error);
-                                    },
-                                  ),
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(16.0),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Date: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            'CV URL: ${application.cvUrl ?? 'Non disponible'}',
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Wrap(
-                                            spacing: 10,
-                                            runSpacing: 10,
-                                            children: [
-                                              ElevatedButton(
-                                                onPressed:
-                                                    () =>
-                                                        _showApplicationDetails(
-                                                          context,
-                                                          application,
-                                                        ),
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      AppColors.primaryBlue,
-                                                  foregroundColor: Colors.white,
-                                                ),
-                                                child: const Text(
-                                                  'Voir détails',
-                                                ),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () async {
-                                                  final newStatus =
-                                                      await _showStatusDialog(
-                                                        context,
-                                                        application.status,
-                                                      );
-                                                  if (newStatus != null &&
-                                                      newStatus !=
-                                                          application.status) {
-                                                    try {
-                                                      print(
-                                                        'Updating status for application ${application.id} to $newStatus',
-                                                      );
-                                                      await ref
-                                                          .read(
-                                                            firestoreServiceProvider,
-                                                          )
-                                                          .updateApplicationStatus(
-                                                            application.id,
-                                                            newStatus,
-                                                          );
-                                                      print(
-                                                        'Status updated successfully',
-                                                      );
-                                                      // Force a refresh of the provider
-                                                      ref.refresh(
-                                                        allApplicationsProvider,
-                                                      );
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Statut mis à jour',
-                                                          ),
-                                                        ),
-                                                      );
-                                                    } catch (e, stack) {
-                                                      print(
-                                                        'Error updating status: $e, Stack: $stack',
-                                                      );
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                            'Erreur: $e',
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor:
-                                                      AppColors.primaryGreen,
-                                                  foregroundColor: Colors.white,
-                                                ),
-                                                child: const Text(
-                                                  'Modifier statut',
-                                                ),
-                                              ),
-                                              ElevatedButton(
-                                                onPressed: () async {
-                                                  final confirm = await showDialog<
-                                                    bool
-                                                  >(
-                                                    context: context,
-                                                    builder:
-                                                        (
-                                                          context,
-                                                        ) => AlertDialog(
-                                                          title: const Text(
-                                                            'Confirmer la suppression',
-                                                          ),
-                                                          content: const Text(
-                                                            'Voulez-vous supprimer cette candidature ?',
-                                                          ),
-                                                          actions: [
-                                                            TextButton(
-                                                              onPressed:
-                                                                  () =>
-                                                                      Navigator.pop(
-                                                                        context,
-                                                                        false,
-                                                                      ),
-                                                              child: const Text(
-                                                                'Annuler',
-                                                              ),
-                                                            ),
-                                                            TextButton(
-                                                              onPressed:
-                                                                  () =>
-                                                                      Navigator.pop(
-                                                                        context,
-                                                                        true,
-                                                                      ),
-                                                              child: const Text(
-                                                                'Supprimer',
-                                                                style: TextStyle(
-                                                                  color:
-                                                                      Colors
-                                                                          .red,
-                                                                ),
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                  );
-                                                  if (confirm == true) {
-                                                    try {
-                                                      print(
-                                                        'Deleting application ${application.id}',
-                                                      );
-                                                      await ref
-                                                          .read(
-                                                            firestoreServiceProvider,
-                                                          )
-                                                          .deleteApplication(
-                                                            application.id,
-                                                          );
-                                                      print(
-                                                        'Application deleted successfully',
-                                                      );
-                                                      // Force a refresh of the provider
-                                                      ref.refresh(
-                                                        allApplicationsProvider,
-                                                      );
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        const SnackBar(
-                                                          content: Text(
-                                                            'Candidature supprimée',
-                                                          ),
-                                                        ),
-                                                      );
-                                                    } catch (e, stack) {
-                                                      print(
-                                                        'Error deleting application: $e, Stack: $stack',
-                                                      );
-                                                      ScaffoldMessenger.of(
-                                                        context,
-                                                      ).showSnackBar(
-                                                        SnackBar(
-                                                          content: Text(
-                                                            'Erreur: $e',
-                                                          ),
-                                                        ),
-                                                      );
-                                                    }
-                                                  }
-                                                },
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: Colors.red,
-                                                  foregroundColor: Colors.white,
-                                                ),
-                                                child: const Text('Supprimer'),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
                                       ),
                                     ),
-                                  ],
-                                ),
                               );
                             },
-                          );
-                        },
-                        loading:
-                            () => const Center(
-                              child: CircularProgressIndicator(),
-                            ),
-                        error:
-                            (error, stack) => Center(
-                              child: Text(
-                                'Erreur lors du chargement des candidatures: $error',
-                                style: const TextStyle(
-                                  color: AppColors.darkGrey,
-                                ),
-                              ),
-                            ),
-                      );
-                    },
-                  ),
+                          ),
                   bottomNavigationBar: BottomNavigationBar(
                     selectedItemColor: AppColors.primaryBlue,
                     unselectedItemColor: AppColors.darkGrey,
@@ -454,20 +701,29 @@ class ApplicationsManagementScreen extends ConsumerWidget {
                         );
                       }
                     },
-                    items: const [
+                    items: [
                       BottomNavigationBarItem(
                         icon: Icon(Icons.assignment),
                         label: 'Candidatures',
+                        tooltip: 'Voir toutes les candidatures',
                       ),
                       BottomNavigationBarItem(
                         icon: Icon(Icons.star),
                         label: 'Favoris',
+                        tooltip: 'Voir les favoris',
                       ),
                       BottomNavigationBarItem(
                         icon: Icon(Icons.person),
                         label: 'Profil',
+                        tooltip: 'Voir le profil',
                       ),
                     ],
+                    backgroundColor: Colors.white,
+                    elevation: 8,
+                    selectedLabelStyle: GoogleFonts.roboto(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    unselectedLabelStyle: GoogleFonts.roboto(),
                   ),
                 );
               },
@@ -479,8 +735,8 @@ class ApplicationsManagementScreen extends ConsumerWidget {
                   (error, _) => Scaffold(
                     body: Center(
                       child: Text(
-                        'Erreur lors du chargement des candidatures: $error',
-                        style: const TextStyle(color: AppColors.darkGrey),
+                        'Erreur lors du chargement: $error',
+                        style: GoogleFonts.roboto(color: AppColors.darkGrey),
                       ),
                     ),
                   ),
@@ -491,97 +747,14 @@ class ApplicationsManagementScreen extends ConsumerWidget {
       loading:
           () =>
               const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, _) => Scaffold(body: Center(child: Text('Erreur: $e'))),
-    );
-  }
-
-  void _showApplicationDetails(BuildContext context, Application application) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Détails de la candidature'),
-            content: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('Candidat: ${application.candidateId}'),
-                  Text('Statut: ${application.status}'),
-                  Text(
-                    'Date: ${DateFormat('dd/MM/yyyy').format(application.appliedAt)}',
-                  ),
-                  if (application.cvUrl != null)
-                    Text('CV URL: ${application.cvUrl}'),
-                  if (application.name != null)
-                    Text('Nom: ${application.name}'),
-                  if (application.email != null)
-                    Text('Email: ${application.email}'),
-                  if (application.phone != null)
-                    Text('Téléphone: ${application.phone}'),
-                  if (application.education != null)
-                    Text('Éducation: ${application.education}'),
-                  if (application.experience != null)
-                    Text('Expérience: ${application.experience}'),
-                  if (application.skills != null)
-                    Text('Compétences: ${application.skills}'),
-                  if (application.languages != null)
-                    Text('Langues: ${application.languages}'),
-                  if (application.coverLetter != null)
-                    Text('Lettre de motivation: ${application.coverLetter}'),
-                ],
+      error:
+          (e, _) => Scaffold(
+            body: Center(
+              child: Text(
+                'Erreur: $e',
+                style: GoogleFonts.roboto(color: AppColors.darkGrey),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Fermer'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Future<String?> _showStatusDialog(
-    BuildContext context,
-    String currentStatus,
-  ) async {
-    return showDialog<String>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Modifier le statut'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  title: const Text('En attente'),
-                  selected: currentStatus == 'pending',
-                  onTap: () => Navigator.pop(context, 'pending'),
-                ),
-                ListTile(
-                  title: const Text('En cours'),
-                  selected: currentStatus == 'in_progress',
-                  onTap: () => Navigator.pop(context, 'in_progress'),
-                ),
-                ListTile(
-                  title: const Text('Acceptée'),
-                  selected: currentStatus == 'accepted',
-                  onTap: () => Navigator.pop(context, 'accepted'),
-                ),
-                ListTile(
-                  title: const Text('Rejetée'),
-                  selected: currentStatus == 'rejected',
-                  onTap: () => Navigator.pop(context, 'rejected'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Annuler'),
-              ),
-            ],
           ),
     );
   }
