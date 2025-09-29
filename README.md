@@ -71,8 +71,48 @@ Here are some screenshots of CandidApp in action, divided by interface type:
 
 ## Installation
 
-**Clone the Repository**:
+1.**Clone the Repository**:
    ```bash
    git clone https://github.com/your-username/candidapp.git
    cd candidapp
+
+2.**Install Dependencies**:
+  Ensure Flutter is installed (version 3.x recommended). Verify with:
+   ```bash
+  flutter --version
+  3.**Install required packages**:
+   ```bash
+  flutter pub get
+
+3.**Configure Firebase**:
+
+  -Create a Firebase project at Firebase Console.
+  -Enable Authentication and Cloud Firestore.
+  -Download configuration files:
+
+  Android: Place google-services.json in android/app/.
+  iOS: Place GoogleService-Info.plist in ios/Runner/.
+
+
+  -Update lib/firebase_options.dart with your Firebase project configuration (follow the Firebase setup guide).
+(Optional) Install Firebase CLI for additional management:
+ ```bash
+  npm install -g firebase-tools
+  firebase login
+
+4.**Set Up Environment Variables (Optional)**:
+
+  Create a .env file in the root directory for sensitive data (e.g., Firebase API keys):
+  textAPI_KEY=your_api_key
+  PROJECT_ID=your_project_id
+  
+  Add .env to .gitignore to prevent committing sensitive data.
+
+
+5.**Run the App**:
+
+Connect a physical device or start an emulator (Android/iOS).
+Run the app:
+ ```bash
+flutter run
 
